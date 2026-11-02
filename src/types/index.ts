@@ -54,7 +54,7 @@ export const DEFAULT_EVENT_CONFIG: EventConfig = {
 export const INITIAL_ATTENDEES: Attendee[] = [
   {
     id: "att-1",
-    regNo: "১০৩৩",
+    regNo: "০০০১",
     name: "মো: নাজমুল আহসান",
     school: "রংপুর জেলা স্কুল",
     district: "রংপুর সদর, রংপুর",
@@ -64,7 +64,7 @@ export const INITIAL_ATTENDEES: Attendee[] = [
   },
   {
     id: "att-2",
-    regNo: "১০৩৪",
+    regNo: "০০০২",
     name: "প্রকৌ. তৌহিদুল ইসলাম",
     school: "রংপুর জিলা স্কুল",
     district: "মিঠাপুকুর, রংপুর",
@@ -74,7 +74,7 @@ export const INITIAL_ATTENDEES: Attendee[] = [
   },
   {
     id: "att-3",
-    regNo: "১০৩৫",
+    regNo: "০০০৩",
     name: "ড. মাহমুদুল হাসান",
     school: "রংপুর সরকারি কলেজ",
     district: "পীরগঞ্জ, রংপুর",
@@ -84,7 +84,7 @@ export const INITIAL_ATTENDEES: Attendee[] = [
   },
   {
     id: "att-4",
-    regNo: "১০৩৬",
+    regNo: "০০০৪",
     name: "আব্দুর রহিম সরকার",
     school: "কাউনিয়া পাইলট উচ্চ বিদ্যালয়",
     district: "কাউনিয়া, রংপুর",

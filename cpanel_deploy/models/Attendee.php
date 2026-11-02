@@ -146,8 +146,28 @@ class AttendeeModel {
      * Delete attendee by ID
      */
     public function delete(string $id): bool {
-        $stmt = $this->db->prepare("DELETE FROM attendees WHERE id = :id");
-        $stmt->execute([':id' => $id]);
+        // Also remove uploaded photo if it was a local server upload
+        try {
+            $stmt = $this->db->prepare("SELECT photo_url FROM attendees WHERE id = :id OR reg_no = :id2 LIMIT 1");
+            $stmt->execute([':id' => $id, ':id2' => $id]);
+            $row = $stmt->fetch();
+            if ($row && !empty($row['photo_url'])) {
+                $photo = $row['photo_url'];
+                if (strpos($photo, 'uploads/') !== false) {
+                    $parts = explode('uploads/', $photo);
+                    $filename = end($parts);
+                    $filepath = __DIR__ . '/../../uploads/' . basename($filename);
+                    if (file_exists($filepath)) {
+                        @unlink($filepath);
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            // ignore file cleanup error
+        }
+
+        $stmt = $this->db->prepare("DELETE FROM attendees WHERE id = :id OR reg_no = :id2");
+        $stmt->execute([':id' => $id, ':id2' => $id]);
         return $stmt->rowCount() > 0;
     }
 
@@ -211,7 +231,7 @@ class AttendeeModel {
         $defaults = [
             [
                 'id' => 'att-1',
-                'regNo' => '১০৩৩',
+                'regNo' => '০০০১',
                 'name' => 'মো: নাজমুল আহসান',
                 'school' => 'রংপুর জেলা স্কুল',
                 'district' => 'রংপুর সদর, রংপুর',
@@ -221,7 +241,7 @@ class AttendeeModel {
             ],
             [
                 'id' => 'att-2',
-                'regNo' => '১০৩৪',
+                'regNo' => '০০০২',
                 'name' => 'প্রকৌ. তৌহিদুল ইসলাম',
                 'school' => 'রংপুর জিলা স্কুল',
                 'district' => 'মিঠাপুকুর, রংপুর',
@@ -231,7 +251,7 @@ class AttendeeModel {
             ],
             [
                 'id' => 'att-3',
-                'regNo' => '১০৩৫',
+                'regNo' => '০০০৩',
                 'name' => 'ড. মাহমুদুল হাসান',
                 'school' => 'রংপুর সরকারি কলেজ',
                 'district' => 'পীরগঞ্জ, রংপুর',
@@ -241,7 +261,7 @@ class AttendeeModel {
             ],
             [
                 'id' => 'att-4',
-                'regNo' => '১০৩৬',
+                'regNo' => '০০০৪',
                 'name' => 'আব্দুর রহিম সরকার',
                 'school' => 'কাউনিয়া পাইলট উচ্চ বিদ্যালয়',
                 'district' => 'কাউনিয়া, রংপুর',

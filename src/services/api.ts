@@ -129,7 +129,7 @@ export const api = {
     const res = await fetch(`${API_BASE}/attendees.php?action=delete&id=${encodeURIComponent(id)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ id, action: 'delete' }),
     });
     const json = await res.json();
     return !!json.success;

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserPlus, Trash2, Search, Eye, Image, CheckCircle, Camera, Printer } from 'lucide-react';
 import { Attendee } from '../types';
+import { getNextRegNo, formatRegNo } from '../utils/bengaliNumerals';
 
 interface AttendeeTableProps {
   attendees: Attendee[];
@@ -9,7 +10,6 @@ interface AttendeeTableProps {
   onAddAttendee: (attendee: Omit<Attendee, 'id'>) => void;
   onUpdateAttendee: (attendee: Attendee) => void;
   onDeleteAttendee: (id: string) => void;
-  onLoadSampleData?: () => void;
   onPhotoUpload: (id: string, photoUrl: string) => void;
   onBulkPrint?: () => void;
   isPreparingPrint?: boolean;
@@ -22,7 +22,6 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
   onAddAttendee,
   onUpdateAttendee,
   onDeleteAttendee,
-  onLoadSampleData,
   onPhotoUpload,
   onBulkPrint,
   isPreparingPrint = false,
@@ -54,7 +53,7 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
 
     onAddAttendee({
       ...newAttendee,
-      regNo: newAttendee.regNo || String(1000 + attendees.length + 1),
+      regNo: newAttendee.regNo ? formatRegNo(newAttendee.regNo) : getNextRegNo(attendees),
     });
 
     setNewAttendee({
@@ -112,7 +111,12 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
           )}
 
           <button
-            onClick={() => setShowAddForm(!showAddForm)}
+            onClick={() => {
+              if (!showAddForm) {
+                setNewAttendee((prev) => ({ ...prev, regNo: getNextRegNo(attendees) }));
+              }
+              setShowAddForm(!showAddForm);
+            }}
             className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-lg text-xs font-semibold transition border border-slate-700"
           >
             <UserPlus className="w-4 h-4 text-emerald-400" />
@@ -143,7 +147,7 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
               <label className="block text-slate-400 mb-1">নিবন্ধন নং</label>
               <input
                 type="text"
-                placeholder="১০৩৪"
+                placeholder="০০০১"
                 value={newAttendee.regNo}
                 onChange={(e) => setNewAttendee({ ...newAttendee, regNo: e.target.value })}
                 className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
@@ -394,15 +398,13 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
                         <Eye className="w-3.5 h-3.5" />
                       </button>
 
-                      {attendees.length > 1 && (
-                        <button
-                          onClick={() => onDeleteAttendee(att.id)}
-                          className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition"
-                          title="মুছে ফেলুন"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => onDeleteAttendee(att.id)}
+                        className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition"
+                        title="ডাটাবেজ ও তালিকা থেকে স্থায়ীভাবে মুছে ফেলুন"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </td>
                   </tr>
                 );

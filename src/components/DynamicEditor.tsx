@@ -300,7 +300,7 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
                     onUpdateAttendee({ ...selectedAttendee, regNo: e.target.value })
                   }
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-sm focus:border-emerald-500 focus:outline-none"
-                  placeholder="১০৩৩"
+                  placeholder="০০০১"
                 />
               </div>
 

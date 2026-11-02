@@ -21,7 +21,7 @@ import { AttendeeTable } from './components/AttendeeTable';
 import { CsvUploaderModal } from './components/CsvUploaderModal';
 import { exportA4PagesToPdf, exportSingleCardImage } from './utils/pdfExport';
 import { preloadTemplateImage } from './utils/cardCanvasRenderer';
-import { toBengaliNumber } from './utils/bengaliNumerals';
+import { toBengaliNumber, getNextRegNo, formatRegNo } from './utils/bengaliNumerals';
 
 export default function App() {
   const [attendees, setAttendees] = useState<Attendee[]>(INITIAL_ATTENDEES);
@@ -141,8 +141,7 @@ export default function App() {
     }
 
     // 3. Clear form by generating a new blank attendee for next entry
-    const savedCount = attendees.filter((a) => a.name.trim() !== '').length + 1;
-    const nextReg = toBengaliNumber(String(1000 + savedCount + 1));
+    const nextReg = getNextRegNo([...attendees, finalized]);
     const blankAttendee: Attendee = {
       id: `att-${Date.now() + 1}`,
       regNo: nextReg,
@@ -154,13 +153,19 @@ export default function App() {
       photoUrl: '',
     };
 
-    setAttendees((prev) => [...prev, blankAttendee]);
+    setAttendees((prev) => {
+      const cleanList = prev.filter((a) => a.name.trim() !== '' || a.id === attendeeId);
+      const exists = cleanList.some((a) => a.id === attendeeId);
+      const updated = exists
+        ? cleanList.map((a) => (a.id === attendeeId ? finalized : a))
+        : [...cleanList, finalized];
+      return [...updated, blankAttendee];
+    });
     setSelectedAttendeeId(blankAttendee.id);
   };
 
   const handleClearCardForm = () => {
-    const savedCount = attendees.filter((a) => a.name.trim() !== '').length;
-    const nextReg = toBengaliNumber(String(1001 + savedCount));
+    const nextReg = getNextRegNo(attendees);
     const blankAttendee: Attendee = {
       id: `att-${Date.now() + 1}`,
       regNo: nextReg,
@@ -171,7 +176,10 @@ export default function App() {
       phone: '',
       photoUrl: '',
     };
-    setAttendees((prev) => [...prev, blankAttendee]);
+    setAttendees((prev) => {
+      const cleanList = prev.filter((a) => a.name.trim() !== '');
+      return [...cleanList, blankAttendee];
+    });
     setSelectedAttendeeId(blankAttendee.id);
   };
 
@@ -199,8 +207,10 @@ export default function App() {
 
   const handleAddAttendee = async (newAtt: Omit<Attendee, 'id'>) => {
     const tempId = `att-${Date.now()}`;
+    const autoReg = newAtt.regNo ? formatRegNo(newAtt.regNo) : getNextRegNo(attendees);
     const created: Attendee = {
       ...newAtt,
+      regNo: autoReg,
       id: tempId,
     };
     setAttendees((prev) => [...prev, created]);
@@ -217,17 +227,49 @@ export default function App() {
     }
   };
 
-  const handleDeleteAttendee = (id: string) => {
-    if (attendees.length <= 1) return;
-    const filtered = attendees.filter((a) => a.id !== id);
-    setAttendees(filtered);
-    if (selectedAttendeeId === id && filtered.length > 0) {
-      setSelectedAttendeeId(filtered[0].id);
+  const handleDeleteAttendee = async (id: string) => {
+    const target = attendees.find((a) => a.id === id);
+    const targetName = target?.name ? `"${target.name}"` : 'এই সদস্যকে';
+    if (!window.confirm(`${targetName} তালিকা এবং ডাটাবেজ থেকে স্থায়ীভাবে মুছে ফেলতে চান?`)) {
+      return;
     }
+
+    // 1. Immediately remove from frontend state
+    const filtered = attendees.filter((a) => a.id !== id);
+    if (filtered.length === 0) {
+      const blankAttendee: Attendee = {
+        id: `att-${Date.now()}`,
+        regNo: '০০০১',
+        name: '',
+        school: 'রংপুর জেলা স্কুল',
+        district: 'রংপুর',
+        guests: '১',
+        phone: '',
+        photoUrl: '',
+      };
+      setAttendees([blankAttendee]);
+      setSelectedAttendeeId(blankAttendee.id);
+    } else {
+      setAttendees(filtered);
+      if (selectedAttendeeId === id) {
+        setSelectedAttendeeId(filtered[0].id);
+      }
+    }
+
+    // 2. Permanently delete from backend database
     if (backendStatus.online) {
-      api.deleteAttendee(id).catch((err) => {
+      try {
+        await api.deleteAttendee(id);
+      } catch (err) {
         console.warn('Backend delete attendee failed:', err);
-      });
+        if (target?.regNo) {
+          try {
+            await api.deleteAttendee(target.regNo);
+          } catch (e2) {
+            console.warn('Backend delete by regNo failed:', e2);
+          }
+        }
+      }
     }
   };
 
@@ -797,7 +839,6 @@ export default function App() {
               onAddAttendee={handleAddAttendee}
               onUpdateAttendee={handleUpdateAttendee}
               onDeleteAttendee={handleDeleteAttendee}
-              onLoadSampleData={handleLoadSampleData}
               onPhotoUpload={handlePhotoUpload}
               onBulkPrint={handleBrowserPrint}
               isPreparingPrint={isPreparingPrint}

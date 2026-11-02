@@ -1,6 +1,6 @@
 import Papa from 'papaparse';
 import { Attendee } from '../types';
-import { toBengaliNumber, toEnglishNumber } from './bengaliNumerals';
+import { toBengaliNumber, toEnglishNumber, formatRegNo } from './bengaliNumerals';
 
 /**
  * Normalizes an image URL, trimming quotes/whitespace and converting
@@ -164,10 +164,9 @@ export function parseAttendeesFromCsv(file: File): Promise<Attendee[]> {
       complete: (results) => {
         const rows = results.data as Record<string, string>[];
         const attendees: Attendee[] = rows.map((row, index) => {
-          // Normalize possible column keys in both English and Bengali
-          const regNo =
-            findValue(row, ['reg', 'regno', 'id', 'serial', 'sl', 'নিবন্ধন', 'আইডি', 'রোল']) ||
-            String(1001 + index);
+          // Normalize possible column keys in both English and Bengali, auto-formatting to 0001 (০০০১), 0002...
+          const rawRegNo = findValue(row, ['reg', 'regno', 'id', 'serial', 'sl', 'নিবন্ধন', 'আইডি', 'রোল']);
+          const regNo = rawRegNo ? formatRegNo(rawRegNo) : formatRegNo(index + 1);
 
           const name =
             findValue(row, ['name', 'fullname', 'attendee', 'সদস্য', 'নাম', 'নামঃ']) ||
@@ -323,14 +322,14 @@ export function generateSampleCsvContent(): string {
   const BOM = '\uFEFF';
   const headers = ['নিবন্ধন নং', 'নাম', 'স্কুল', 'জেলা অবস্থান', 'অতিথি', 'মোবাইল নম্বর', 'Image'];
   const sampleRows = [
-    ['১০৩৩', 'মো: নাজমুল আহসান', 'রংপুর জেলা স্কুল', 'রংপুর সদর, রংপুর', '২', '০১৭XXXXXXXX', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80'],
-    ['১০৩৪', 'কাজী গোলাম মোস্তফা', 'কারমাইকেল কলেজিয়েট স্কুল', 'ধাপ, রংপুর', '১', '০১৭১১১১১১১১', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80'],
-    ['১০৩৫', 'মোস্তাফিজুর রহমান', 'রংপুর জিলা স্কুল', 'পীরগঞ্জ, রংপুর', '৩', '০১৭২২২২২২২২', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80'],
-    ['১০৩৬', 'শেখ শফিউল আলম', 'ক্যান্টনমেন্ট পাবলিক স্কুল', 'রংপুর ক্যান্টনমেন্ট', '২', '০১৭৩৩৩৩৩৩৩৩', 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=400&auto=format&fit=crop&q=80'],
-    ['১০৩৭', 'আহমেদ জামিল রশীদ', 'রংপুর সরকারি টেকনিক্যাল স্কুল', 'মর্ডান মোড়, রংপুর', '১', '০১৭৪৪৪৪৪৪৪৪', 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&auto=format&fit=crop&q=80'],
-    ['১০৩৮', 'বদরুল হুদা মিঠু', 'রংপুর জেলা স্কুল', 'জাহাজ কোম্পানি মোড়, রংপুর', '৪', '০১৭৫৫৫৫৫৫৫৫', ''],
-    ['১০৩৯', 'ফারুক আহমেদ চৌধুরী', 'রংপুর জিলা স্কুল', 'বেগম রোকেয়া কলেজ এলাকা', '২', '০১৭৬৬৬৬৬৬৬৬', ''],
-    ['১০৪০', 'তারেক মাহমুদ', 'রংপুর মডেল স্কুল', 'সাতমাথা, রংপুর', '১', '০১৭৭৭৭৭৭৭৭৭', ''],
+    ['০০০১', 'মো: নাজমুল আহসান', 'রংপুর জেলা স্কুল', 'রংপুর সদর, রংপুর', '২', '০১৭XXXXXXXX', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80'],
+    ['০০০২', 'কাজী গোলাম মোস্তফা', 'কারমাইকেল কলেজিয়েট স্কুল', 'ধাপ, রংপুর', '১', '০১৭১১১১১১১১', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80'],
+    ['০০০৩', 'মোস্তাফিজুর রহমান', 'রংপুর জিলা স্কুল', 'পীরগঞ্জ, রংপুর', '৩', '০১৭২২২২২২২২', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80'],
+    ['০০০৪', 'শেখ শফিউল আলম', 'ক্যান্টনমেন্ট পাবলিক স্কুল', 'রংপুর ক্যান্টনমেন্ট', '২', '০১৭৩৩৩৩৩৩৩৩', 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=400&auto=format&fit=crop&q=80'],
+    ['০০০৫', 'আহমেদ জামিল রশীদ', 'রংপুর সরকারি টেকনিক্যাল স্কুল', 'মর্ডান মোড়, রংপুর', '১', '০১৭৪৪৪৪৪৪৪৪', 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&auto=format&fit=crop&q=80'],
+    ['০০০৬', 'বদরুল হুদা মিঠু', 'রংপুর জেলা স্কুল', 'জাহাজ কোম্পানি মোড়, রংপুর', '৪', '০১৭৫৫৫৫৫৫৫৫', ''],
+    ['০০০৭', 'ফারুক আহমেদ চৌধুরী', 'রংপুর জিলা স্কুল', 'বেগম রোকেয়া কলেজ এলাকা', '২', '০১৭৬৬৬৬৬৬৬৬', ''],
+    ['০০০৮', 'তারেক মাহমুদ', 'রংপুর মডেল স্কুল', 'সাতমাথা, রংপুর', '১', '০১৭৭৭৭৭৭৭৭৭', ''],
   ];
 
   const csvBody = [

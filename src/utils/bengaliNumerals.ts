@@ -38,3 +38,32 @@ export function toEnglishNumber(val: string): string {
   if (!val) return '';
   return val.replace(/[০-৯]/g, (digit) => BN_TO_EN_MAP[digit] || digit);
 }
+
+/**
+ * Format registration number with 4-digit leading zeros in Bengali (e.g. 1 -> ০০০১, 2 -> ০০০২)
+ */
+export function formatRegNo(num: number | string): string {
+  const cleanDigits = toEnglishNumber(String(num)).replace(/\D/g, '');
+  const n = parseInt(cleanDigits, 10);
+  if (isNaN(n) || n <= 0) {
+    return '০০০১';
+  }
+  return toBengaliNumber(String(n).padStart(4, '0'));
+}
+
+/**
+ * Auto-generate next registration number starting from 0001 (০০০১), 0002 (০০০২), ...
+ */
+export function getNextRegNo(attendees: { regNo?: string; name?: string }[]): string {
+  const valid = attendees.filter((a) => (a.name || '').trim() !== '');
+  let maxNum = 0;
+  for (const att of valid) {
+    const enDigits = toEnglishNumber(att.regNo || '').replace(/\D/g, '');
+    const num = parseInt(enDigits, 10);
+    if (!isNaN(num) && num > maxNum) {
+      maxNum = num;
+    }
+  }
+  const nextNum = maxNum > 0 ? maxNum + 1 : (valid.length > 0 ? valid.length + 1 : 1);
+  return toBengaliNumber(String(nextNum).padStart(4, '0'));
+}
