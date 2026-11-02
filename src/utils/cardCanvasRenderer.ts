@@ -79,10 +79,10 @@ export async function renderCardToCanvas(
   if (document.fonts) {
     try {
       await Promise.all([
-        document.fonts.load('bold 74px "Kalpurush"'),
-        document.fonts.load('bold 74px "SolaimanLipi"'),
-        document.fonts.load('bold 34px "Kalpurush"'),
-        document.fonts.load('bold 34px "SolaimanLipi"'),
+        document.fonts.load('bold 82px "Kalpurush"'),
+        document.fonts.load('bold 82px "SolaimanLipi"'),
+        document.fonts.load('bold 39px "Kalpurush"'),
+        document.fonts.load('bold 39px "SolaimanLipi"'),
         document.fonts.ready,
       ]);
     } catch {
@@ -201,9 +201,12 @@ export async function renderCardToCanvas(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#09522e';
+  ctx.strokeStyle = '#09522e';
+  ctx.lineWidth = 1.2;
   // Use selected Bangla font (Kalpurush / SolaimanLipi)
   const regFont = getCanvasRegFont(config.fontChoice);
-  ctx.font = `bold 74px ${regFont}`;
+  ctx.font = `bold 82px ${regFont}`;
+  ctx.strokeText(attendee.regNo || '', regCenterX, regCenterY);
   ctx.fillText(attendee.regNo || '', regCenterX, regCenterY);
   ctx.restore();
 
@@ -249,26 +252,33 @@ export async function renderCardToCanvas(
       ? `${field.label}${field.value}`
       : field.value;
 
-    // Dynamically adjust font size if text is very long
-    let fontSize = 34;
+    // Dynamically adjust font size if text is very long (small increase to 39px)
+    let fontSize = 39;
     ctx.font = `bold ${fontSize}px ${fieldsFont}`;
     let measuredWidth = ctx.measureText(fullText).width;
 
-    while (measuredWidth > infoMaxWidth && fontSize > 20) {
+    while (measuredWidth > infoMaxWidth && fontSize > 22) {
       fontSize -= 2;
       ctx.font = `bold ${fontSize}px ${fieldsFont}`;
       measuredWidth = ctx.measureText(fullText).width;
     }
 
+    ctx.lineWidth = 0.8;
     if (field.label && field.label.trim() !== '') {
       ctx.fillStyle = '#063b20';
+      ctx.strokeStyle = '#063b20';
+      ctx.strokeText(field.label, infoLeft, field.centerY);
       ctx.fillText(field.label, infoLeft, field.centerY);
       const labelWidth = ctx.measureText(field.label).width;
 
       ctx.fillStyle = '#0a1826';
+      ctx.strokeStyle = '#0a1826';
+      ctx.strokeText(field.value, infoLeft + labelWidth, field.centerY);
       ctx.fillText(field.value, infoLeft + labelWidth, field.centerY);
     } else {
       ctx.fillStyle = '#0a1826';
+      ctx.strokeStyle = '#0a1826';
+      ctx.strokeText(field.value, infoLeft, field.centerY);
       ctx.fillText(field.value, infoLeft, field.centerY);
     }
     ctx.restore();

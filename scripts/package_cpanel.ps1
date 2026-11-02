@@ -37,15 +37,12 @@ New-Item -ItemType Directory -Force -Path $uploadsDir | Out-Null
 Copy-Item -Force "$projectRoot\backend\.env" "$deployDir\.env"
 Copy-Item -Force "$projectRoot\backend\database\schema.sql" "$deployDir\schema.sql"
 
-# Create production .htaccess for cPanel / Apache
+# Create production .htaccess for cPanel / InfinityFree / Apache
 Write-Host "5. Creating Apache .htaccess..." -ForegroundColor Cyan
 $htaccessContent = @"
-# InfinityFree & cPanel Safe .htaccess
+<IfModule mod_rewrite.c>
 RewriteEngine On
-
-# Block direct access to hidden/sensitive files (.env, .git, schema.sql)
-RewriteRule ^\.(.*)$ - [F,L]
-RewriteRule ^schema\.sql$ - [F,L]
+RewriteBase /
 
 # API clean routing to PHP endpoints
 RewriteRule ^api/attendees/?$ api/attendees.php [L,QSA]
@@ -54,13 +51,13 @@ RewriteRule ^api/upload/?$ api/upload.php [L,QSA]
 RewriteRule ^api/status/?$ api/status.php [L,QSA]
 RewriteRule ^api/?$ api/index.php [L,QSA]
 
-# Allow direct access to existing files and folders (JS, CSS, images, fonts, PHP scripts)
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^ - [L]
+# Allow direct access to existing files and folders (JS, CSS, images, fonts, PHP scripts, uploads)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 
 # React SPA Fallback to index.html
-RewriteRule ^ index.html [L]
+RewriteRule ^(.*)$ index.html [L,QSA]
+</IfModule>
 "@
 
 Set-Content -Path "$deployDir\.htaccess" -Value $htaccessContent -Encoding UTF8
@@ -70,7 +67,12 @@ Write-Host "6. Creating cpanel_deploy.zip..." -ForegroundColor Cyan
 if (Test-Path $zipPath) {
     Remove-Item -Force $zipPath
 }
-Compress-Archive -Path "$deployDir\*" -DestinationPath $zipPath -Force
+$tarExe = Get-Command "tar.exe" -ErrorAction SilentlyContinue
+if ($tarExe) {
+    & tar.exe -a -c -f $zipPath -C $deployDir .
+} else {
+    Compress-Archive -Path "$deployDir\*" -DestinationPath $zipPath -Force
+}
 
 Write-Host "=====================================================" -ForegroundColor Green
 Write-Host " 🎉 SUCCESS: cPanel Deployment Package Ready!" -ForegroundColor Green

@@ -169,11 +169,14 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
         }}
       >
         <span
-          className="font-bold text-[#09522e] tracking-wider text-center text-[22px] sm:text-[32px] [font-size:clamp(20px,6.2cqi,46px)]"
+          className="font-black text-[#09522e] tracking-wider text-center text-[24px] sm:text-[34px] [font-size:clamp(22px,6.8cqi,50px)]"
           style={{
             fontFamily: getRegFontFamily(config.fontChoice),
+            fontWeight: 800,
             lineHeight: 1,
             textShadow: '0 1px 1px rgba(255,255,255,0.7)',
+            WebkitTextStroke: '0.4px currentColor',
+            fontSynthesis: 'weight',
           }}
         >
           {attendee.regNo}
@@ -290,15 +293,18 @@ const FieldTextRow: React.FC<FieldTextRowProps> = ({ top, height, label, value, 
       }}
     >
       <span
-        className="font-bold text-[#0a2016] truncate block w-full leading-tight text-[11px] sm:text-[14px] [font-size:clamp(10px,2.6cqi,18px)]"
+        className="font-extrabold text-[#051422] truncate block w-full leading-tight text-[12.5px] sm:text-[15.5px] [font-size:clamp(11.5px,3.0cqi,21px)]"
         style={{
           fontFamily: fontFamily || "'Kalpurush', 'SolaimanLipi', sans-serif",
+          fontWeight: 800,
+          WebkitTextStroke: '0.3px currentColor',
+          fontSynthesis: 'weight',
         }}
       >
         {label && label.trim() !== '' ? (
-          <span className="text-[#063b20] mr-1">{label}</span>
+          <span className="text-[#053d21] mr-1 font-bold">{label}</span>
         ) : null}
-        <span className="text-[#0a1826]">{value}</span>
+        <span className="text-[#051422]">{value}</span>
       </span>
     </div>
   );

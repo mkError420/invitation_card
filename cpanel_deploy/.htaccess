@@ -1,9 +1,6 @@
-# InfinityFree & cPanel Safe .htaccess
+<IfModule mod_rewrite.c>
 RewriteEngine On
-
-# Block direct access to hidden/sensitive files (.env, .git, schema.sql)
-RewriteRule ^\.(.*)$ - [F,L]
-RewriteRule ^schema\.sql$ - [F,L]
+RewriteBase /
 
 # API clean routing to PHP endpoints
 RewriteRule ^api/attendees/?$ api/attendees.php [L,QSA]
@@ -12,10 +9,10 @@ RewriteRule ^api/upload/?$ api/upload.php [L,QSA]
 RewriteRule ^api/status/?$ api/status.php [L,QSA]
 RewriteRule ^api/?$ api/index.php [L,QSA]
 
-# Allow direct access to existing files and folders (JS, CSS, images, fonts, PHP scripts)
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^ - [L]
+# Allow direct access to existing files and folders (JS, CSS, images, fonts, PHP scripts, uploads)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 
 # React SPA Fallback to index.html
-RewriteRule ^ index.html [L]
+RewriteRule ^(.*)$ index.html [L,QSA]
+</IfModule>
