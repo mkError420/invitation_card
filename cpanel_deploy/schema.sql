@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS `event_config` (
     `show_cut_marks` TINYINT(1) DEFAULT 1,
     `photo_scale` INT DEFAULT 98,
     `photo_offset_y` INT DEFAULT 0,
+    `font_choice` VARCHAR(50) DEFAULT 'kalpurush',
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -4,6 +4,27 @@ import { Attendee, EventConfig, DEFAULT_EVENT_CONFIG } from '../types';
 // Cache for preloaded template image
 let cachedTemplateImage: HTMLImageElement | null = null;
 
+// Font family helpers for Canvas rendering
+export function getCanvasRegFont(fontChoice?: string): string {
+  if (fontChoice === 'solaiman') {
+    return '"SolaimanLipi", "Kalpurush", sans-serif';
+  }
+  if (fontChoice === 'solaiman_kalpurush') {
+    return '"SolaimanLipi", "Kalpurush", sans-serif';
+  }
+  return '"Kalpurush", "SolaimanLipi", sans-serif';
+}
+
+export function getCanvasFieldsFont(fontChoice?: string): string {
+  if (fontChoice === 'solaiman') {
+    return '"SolaimanLipi", "Kalpurush", sans-serif';
+  }
+  if (fontChoice === 'kalpurush_solaiman') {
+    return '"SolaimanLipi", "Kalpurush", sans-serif';
+  }
+  return '"Kalpurush", "SolaimanLipi", sans-serif';
+}
+
 /**
  * Preload and cache the card template image
  */
@@ -54,10 +75,16 @@ export async function renderCardToCanvas(
   config: EventConfig,
   options: { isPrintMode?: boolean } = {}
 ): Promise<HTMLCanvasElement> {
-  // Ensure fonts are loaded
+  // Ensure Bangla fonts (Kalpurush, SolaimanLipi) and general fonts are loaded
   if (document.fonts) {
     try {
-      await document.fonts.ready;
+      await Promise.all([
+        document.fonts.load('bold 74px "Kalpurush"'),
+        document.fonts.load('bold 74px "SolaimanLipi"'),
+        document.fonts.load('bold 34px "Kalpurush"'),
+        document.fonts.load('bold 34px "SolaimanLipi"'),
+        document.fonts.ready,
+      ]);
     } catch {
       // Ignore font readiness timeout
     }
@@ -174,14 +201,16 @@ export async function renderCardToCanvas(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#09522e';
-  // Use Anek Bangla or Hind Siliguri
-  ctx.font = 'bold 74px "Anek Bangla", "Hind Siliguri", "Noto Sans Bengali", sans-serif';
+  // Use selected Bangla font (Kalpurush / SolaimanLipi)
+  const regFont = getCanvasRegFont(config.fontChoice);
+  ctx.font = `bold 74px ${regFont}`;
   ctx.fillText(attendee.regNo || '', regCenterX, regCenterY);
   ctx.restore();
 
   // 5. Five Information Fields
   const infoLeft = width * 0.325 + 10;
   const infoMaxWidth = width * 0.545 - 20;
+  const fieldsFont = getCanvasFieldsFont(config.fontChoice);
 
   const fields = [
     {
@@ -222,12 +251,12 @@ export async function renderCardToCanvas(
 
     // Dynamically adjust font size if text is very long
     let fontSize = 34;
-    ctx.font = `bold ${fontSize}px "Hind Siliguri", "Noto Sans Bengali", sans-serif`;
+    ctx.font = `bold ${fontSize}px ${fieldsFont}`;
     let measuredWidth = ctx.measureText(fullText).width;
 
     while (measuredWidth > infoMaxWidth && fontSize > 20) {
       fontSize -= 2;
-      ctx.font = `bold ${fontSize}px "Hind Siliguri", "Noto Sans Bengali", sans-serif`;
+      ctx.font = `bold ${fontSize}px ${fieldsFont}`;
       measuredWidth = ctx.measureText(fullText).width;
     }
 

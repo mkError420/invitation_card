@@ -10,6 +10,29 @@ interface InvitationCardProps {
   onPhotoUpload?: (attendeeId: string, photoUrl: string) => void;
 }
 
+// Helper functions to get font family for marked fields
+export function getRegFontFamily(fontChoice?: string): string {
+  if (fontChoice === 'solaiman') {
+    return "'SolaimanLipi', 'Kalpurush', sans-serif";
+  }
+  if (fontChoice === 'solaiman_kalpurush') {
+    return "'SolaimanLipi', 'Kalpurush', sans-serif";
+  }
+  // Default and 'kalpurush' and 'kalpurush_solaiman'
+  return "'Kalpurush', 'SolaimanLipi', sans-serif";
+}
+
+export function getFieldsFontFamily(fontChoice?: string): string {
+  if (fontChoice === 'solaiman') {
+    return "'SolaimanLipi', 'Kalpurush', sans-serif";
+  }
+  if (fontChoice === 'kalpurush_solaiman') {
+    return "'SolaimanLipi', 'Kalpurush', sans-serif";
+  }
+  // Default and 'kalpurush' and 'solaiman_kalpurush'
+  return "'Kalpurush', 'SolaimanLipi', sans-serif";
+}
+
 export const InvitationCard: React.FC<InvitationCardProps> = ({
   attendee,
   config,
@@ -146,8 +169,9 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
         }}
       >
         <span
-          className="font-anek font-bold text-[#09522e] tracking-wider text-center text-[22px] sm:text-[32px] [font-size:clamp(20px,6.2cqi,46px)]"
+          className="font-bold text-[#09522e] tracking-wider text-center text-[22px] sm:text-[32px] [font-size:clamp(20px,6.2cqi,46px)]"
           style={{
+            fontFamily: getRegFontFamily(config.fontChoice),
             lineHeight: 1,
             textShadow: '0 1px 1px rgba(255,255,255,0.7)',
           }}
@@ -163,6 +187,7 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
         height="6.47%"
         label={config.labelName}
         value={attendee.name}
+        fontFamily={getFieldsFontFamily(config.fontChoice)}
       />
 
       {/* 2. School */}
@@ -171,6 +196,7 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
         height="6.73%"
         label={config.labelSchool}
         value={attendee.school}
+        fontFamily={getFieldsFontFamily(config.fontChoice)}
       />
 
       {/* 3. District / Location */}
@@ -179,6 +205,7 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
         height="6.67%"
         label={config.labelDistrict}
         value={attendee.district}
+        fontFamily={getFieldsFontFamily(config.fontChoice)}
       />
 
       {/* 4. Guests */}
@@ -187,6 +214,7 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
         height="6.60%"
         label={config.labelGuests}
         value={attendee.guests}
+        fontFamily={getFieldsFontFamily(config.fontChoice)}
       />
 
       {/* 5. Mobile */}
@@ -195,6 +223,7 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
         height="6.67%"
         label={config.labelPhone}
         value={attendee.phone}
+        fontFamily={getFieldsFontFamily(config.fontChoice)}
       />
 
       {/* Custom Footer Overlay (only if user customized Date or Venue from default) */}
@@ -246,9 +275,10 @@ interface FieldTextRowProps {
   height: string;
   label: string;
   value: string;
+  fontFamily?: string;
 }
 
-const FieldTextRow: React.FC<FieldTextRowProps> = ({ top, height, label, value }) => {
+const FieldTextRow: React.FC<FieldTextRowProps> = ({ top, height, label, value, fontFamily }) => {
   return (
     <div
       className="absolute z-20 flex items-center px-2 min-w-0"
@@ -260,7 +290,10 @@ const FieldTextRow: React.FC<FieldTextRowProps> = ({ top, height, label, value }
       }}
     >
       <span
-        className="font-bangla font-bold text-[#0a2016] truncate block w-full leading-tight text-[11px] sm:text-[14px] [font-size:clamp(10px,2.6cqi,18px)]"
+        className="font-bold text-[#0a2016] truncate block w-full leading-tight text-[11px] sm:text-[14px] [font-size:clamp(10px,2.6cqi,18px)]"
+        style={{
+          fontFamily: fontFamily || "'Kalpurush', 'SolaimanLipi', sans-serif",
+        }}
       >
         {label && label.trim() !== '' ? (
           <span className="text-[#063b20] mr-1">{label}</span>

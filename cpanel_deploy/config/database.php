@@ -174,6 +174,7 @@ class Database {
                 show_cut_marks INTEGER DEFAULT 1,
                 photo_scale INTEGER DEFAULT 98,
                 photo_offset_y INTEGER DEFAULT 0,
+                font_choice TEXT DEFAULT 'kalpurush',
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
         ");

@@ -27,6 +27,7 @@ class EventConfigModel {
             'showCutMarks' => (bool)($row['show_cut_marks'] ?? 1),
             'photoScale' => (int)($row['photo_scale'] ?? 98),
             'photoOffsetY' => (int)($row['photo_offset_y'] ?? 0),
+            'fontChoice' => (string)($row['font_choice'] ?? 'kalpurush'),
         ];
     }
 
@@ -64,6 +65,14 @@ class EventConfigModel {
         $showCutMarks = isset($data['showCutMarks']) ? ($data['showCutMarks'] ? 1 : 0) : ($current['showCutMarks'] ? 1 : 0);
         $photoScale = isset($data['photoScale']) ? (int)$data['photoScale'] : $current['photoScale'];
         $photoOffsetY = isset($data['photoOffsetY']) ? (int)$data['photoOffsetY'] : $current['photoOffsetY'];
+        $fontChoice = $data['fontChoice'] ?? $data['font_choice'] ?? ($current['fontChoice'] ?? 'kalpurush');
+
+        // Check/ensure font_choice column exists
+        try {
+            $this->db->exec("ALTER TABLE event_config ADD COLUMN font_choice VARCHAR(50) DEFAULT 'kalpurush'");
+        } catch (Exception $e) {
+            // column already exists
+        }
 
         $stmt = $this->db->prepare("
             UPDATE event_config SET
@@ -84,6 +93,7 @@ class EventConfigModel {
                 show_cut_marks = :show_cut_marks,
                 photo_scale = :photo_scale,
                 photo_offset_y = :photo_offset_y,
+                font_choice = :font_choice,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = 1
         ");
@@ -106,6 +116,7 @@ class EventConfigModel {
             ':show_cut_marks' => $showCutMarks,
             ':photo_scale' => $photoScale,
             ':photo_offset_y' => $photoOffsetY,
+            ':font_choice' => $fontChoice,
         ]);
 
         return $this->get();

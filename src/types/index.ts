@@ -27,6 +27,7 @@ export interface EventConfig {
   showCutMarks: boolean;
   photoScale: number; // percentage, e.g. 88 (makes photo smaller so it never overlaps text)
   photoOffsetY: number; // vertical adjustment in percentage
+  fontChoice?: 'kalpurush' | 'solaiman' | 'kalpurush_solaiman' | 'solaiman_kalpurush';
 }
 
 export const DEFAULT_EVENT_CONFIG: EventConfig = {
@@ -47,6 +48,7 @@ export const DEFAULT_EVENT_CONFIG: EventConfig = {
   showCutMarks: true,
   photoScale: 98,
   photoOffsetY: 0,
+  fontChoice: 'kalpurush',
 };
 
 export const INITIAL_ATTENDEES: Attendee[] = [

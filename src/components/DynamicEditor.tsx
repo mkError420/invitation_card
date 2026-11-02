@@ -186,6 +186,72 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
               </div>
             </div>
 
+            {/* Bangla Font Selector for Card Marking Area */}
+            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-slate-200 flex items-center gap-1.5">
+                  <Type className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>কার্ড লেখার বাংলা ফন্ট (Bangla Font)</span>
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-medium">
+                  কালপুরুষ ও সোলাইমানলিপি
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => onUpdateConfig({ ...config, fontChoice: 'kalpurush' })}
+                  className={`p-2 rounded-lg border text-left transition ${
+                    (!config.fontChoice || config.fontChoice === 'kalpurush')
+                      ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300 font-bold'
+                      : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="font-kalpurush text-sm">কালপুরুষ (Kalpurush)</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">সব ফিল্ডে কালপুরুষ ফন্ট</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onUpdateConfig({ ...config, fontChoice: 'solaiman' })}
+                  className={`p-2 rounded-lg border text-left transition ${
+                    config.fontChoice === 'solaiman'
+                      ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300 font-bold'
+                      : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="font-solaiman text-sm">সোলাইমানলিপি (SolaimanLipi)</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">সব ফিল্ডে সোলাইমানলিপি ফন্ট</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onUpdateConfig({ ...config, fontChoice: 'kalpurush_solaiman' })}
+                  className={`p-2 rounded-lg border text-left transition ${
+                    config.fontChoice === 'kalpurush_solaiman'
+                      ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300 font-bold'
+                      : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="text-xs font-semibold">আইডি কালপুরুষ + তথ্য সোলাইমানলিপি</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">আইডি: Kalpurush • ফিল্ড: SolaimanLipi</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onUpdateConfig({ ...config, fontChoice: 'solaiman_kalpurush' })}
+                  className={`p-2 rounded-lg border text-left transition ${
+                    config.fontChoice === 'solaiman_kalpurush'
+                      ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300 font-bold'
+                      : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="text-xs font-semibold">আইডি সোলাইমানলিপি + তথ্য কালপুরুষ</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">আইডি: SolaimanLipi • ফিল্ড: Kalpurush</div>
+                </button>
+              </div>
+            </div>
+
             {/* Registration No & Name */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>

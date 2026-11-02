@@ -1,5 +1,36 @@
 @import "tailwindcss";
 
+/* Bangla Web Fonts: Kalpurush and SolaimanLipi */
+@font-face {
+  font-family: 'Kalpurush';
+  src: url('/fonts/Kalpurush.woff2') format('woff2'),
+       url('/fonts/Kalpurush.ttf') format('truetype'),
+       url('https://fonts.maateen.me/kalpurush/Kalpurush-v0.258.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'SolaimanLipi';
+  src: url('/fonts/solaimanlipi-bold.woff2') format('woff2'),
+       url('/fonts/solaimanlipi-bold.ttf') format('truetype'),
+       url('https://fonts.maateen.me/solaiman-lipi/solaimanlipi-bold-v1.0.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'SolaimanLipi';
+  src: url('/fonts/solaimanlipi-normal.woff2') format('woff2'),
+       url('/fonts/solaimanlipi-normal.ttf') format('truetype'),
+       url('https://fonts.maateen.me/solaiman-lipi/solaimanlipi-normal-v1.0.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   body {
     font-family: 'Hind Siliguri', 'Noto Sans Bengali', system-ui, -apple-system, sans-serif;
@@ -9,6 +40,18 @@
 
 .font-bangla {
   font-family: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif;
+}
+
+.font-kalpurush {
+  font-family: 'Kalpurush', 'SolaimanLipi', sans-serif;
+}
+
+.font-solaiman {
+  font-family: 'SolaimanLipi', 'Kalpurush', sans-serif;
+}
+
+.font-card-marking {
+  font-family: 'Kalpurush', 'SolaimanLipi', sans-serif;
 }
 
 .font-anek {

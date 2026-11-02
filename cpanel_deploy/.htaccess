@@ -1,4 +1,4 @@
-# InfinityFree & cPanel Optimized .htaccess
+﻿# InfinityFree & cPanel Optimized .htaccess
 RewriteEngine On
 RewriteBase /
 
