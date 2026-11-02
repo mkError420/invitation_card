@@ -9,6 +9,11 @@ import {
   Settings2,
   Trash2,
   Sparkles,
+  Save,
+  CheckCircle,
+  AlertCircle,
+  Users,
+  RotateCcw,
 } from 'lucide-react';
 import { Attendee, EventConfig } from '../types';
 
@@ -17,6 +22,9 @@ interface DynamicEditorProps {
   config: EventConfig;
   onUpdateAttendee: (attendee: Attendee) => void;
   onUpdateConfig: (config: EventConfig) => void;
+  onSaveAttendee?: (attendee: Attendee) => Promise<void> | void;
+  onClearForm?: () => void;
+  onViewTable?: () => void;
 }
 
 export const DynamicEditor: React.FC<DynamicEditorProps> = ({
@@ -24,9 +32,35 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
   config,
   onUpdateAttendee,
   onUpdateConfig,
+  onSaveAttendee,
+  onClearForm,
+  onViewTable,
 }) => {
   const [activeTab, setActiveTab] = useState<'attendee' | 'event' | 'labels' | 'print'>('attendee');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleSaveAttendee = async () => {
+    if (!selectedAttendee.name.trim()) {
+      setValidationError('অনুগ্রহ করে সদস্যের নাম পূরণ করুন।');
+      return;
+    }
+    setValidationError(null);
+    setIsSaving(true);
+    try {
+      if (onSaveAttendee) {
+        await onSaveAttendee(selectedAttendee);
+      }
+      setSaveSuccessMsg(`'${selectedAttendee.name}' সফলভাবে ডাটাবেজে সংরক্ষিত হয়েছে এবং ফর্ম ক্লিয়ার করা হয়েছে।`);
+      setTimeout(() => setSaveSuccessMsg(null), 6000);
+    } catch (err: any) {
+      setValidationError('সংরক্ষণে ত্রুটি হয়েছে: ' + (err?.message || ''));
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -351,6 +385,62 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
                 />
               </div>
             </div>
+
+            {/* Validation Message */}
+            {validationError && (
+              <div className="p-2.5 bg-rose-950/60 border border-rose-800 text-rose-300 rounded-xl text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{validationError}</span>
+              </div>
+            )}
+
+            {/* Save Success Message */}
+            {saveSuccessMsg && (
+              <div className="p-3 bg-emerald-950/60 border border-emerald-700 text-emerald-300 rounded-xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-xs">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{saveSuccessMsg}</span>
+                </div>
+                {onViewTable && (
+                  <button
+                    type="button"
+                    onClick={onViewTable}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-semibold transition shrink-0"
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>সদস্য তালিকায় দেখুন</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Save & Clear Action Buttons */}
+            <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSaveAttendee}
+                disabled={isSaving}
+                className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer"
+              >
+                <Save className="w-4 h-4" />
+                <span>{isSaving ? 'সংরক্ষণ করা হচ্ছে...' : 'ডাটাবেজে সংরক্ষণ করুন (Save & Clear)'}</span>
+              </button>
+
+              {onClearForm && (
+                <button
+                  type="button"
+                  onClick={onClearForm}
+                  title="ফর্মটি নতুন সদস্যের জন্য খালি করুন"
+                  className="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-medium transition border border-slate-700 flex items-center justify-center gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>ফর্ম খালি করুন</span>
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400 text-center">
+              সংরক্ষণ করলে মেম্বার ডাটাবেজ ও 'নিবন্ধিত সদস্যদের তালিকা'য় যুক্ত হবে এবং ফর্মটি পরবর্তী মেম্বারের জন্য ক্লিয়ার হয়ে যাবে।
+            </p>
           </div>
         )}
 

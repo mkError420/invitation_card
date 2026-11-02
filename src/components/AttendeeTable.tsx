@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserPlus, Trash2, Search, Eye, Image, RefreshCw, CheckCircle, Camera, Printer } from 'lucide-react';
+import { UserPlus, Trash2, Search, Eye, Image, CheckCircle, Camera, Printer } from 'lucide-react';
 import { Attendee } from '../types';
 
 interface AttendeeTableProps {
@@ -9,7 +9,7 @@ interface AttendeeTableProps {
   onAddAttendee: (attendee: Omit<Attendee, 'id'>) => void;
   onUpdateAttendee: (attendee: Attendee) => void;
   onDeleteAttendee: (id: string) => void;
-  onLoadSampleData: () => void;
+  onLoadSampleData?: () => void;
   onPhotoUpload: (id: string, photoUrl: string) => void;
   onBulkPrint?: () => void;
   isPreparingPrint?: boolean;
@@ -39,7 +39,8 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
     photoUrl: '',
   });
 
-  const filteredAttendees = attendees.filter(
+  const savedAttendees = attendees.filter((a) => a.name.trim() !== '');
+  const filteredAttendees = savedAttendees.filter(
     (att) =>
       att.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       att.regNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -89,7 +90,7 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
           <div className="flex items-center gap-2">
             <h3 className="text-base font-bold text-white">নিবন্ধিত সদস্যদের তালিকা</h3>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300">
-              মোট: {attendees.length} জন
+              মোট: {savedAttendees.length} জন
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
@@ -116,15 +117,6 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
           >
             <UserPlus className="w-4 h-4 text-emerald-400" />
             <span>নতুন সদস্য যোগ</span>
-          </button>
-
-          <button
-            onClick={onLoadSampleData}
-            title="৮ জনের নমুনা ডেটা লোড করুন"
-            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs transition border border-slate-700"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">নমুনা ডেটা</span>
           </button>
         </div>
       </div>

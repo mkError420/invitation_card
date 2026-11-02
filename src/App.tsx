@@ -10,7 +10,6 @@ import {
   Grid,
   Users,
   Copy,
-  Sparkles,
   Loader2,
 } from 'lucide-react';
 import { Attendee, EventConfig, DEFAULT_EVENT_CONFIG, INITIAL_ATTENDEES } from './types';
@@ -22,6 +21,7 @@ import { AttendeeTable } from './components/AttendeeTable';
 import { CsvUploaderModal } from './components/CsvUploaderModal';
 import { exportA4PagesToPdf, exportSingleCardImage } from './utils/pdfExport';
 import { preloadTemplateImage } from './utils/cardCanvasRenderer';
+import { toBengaliNumber } from './utils/bengaliNumerals';
 
 export default function App() {
   const [attendees, setAttendees] = useState<Attendee[]>(INITIAL_ATTENDEES);
@@ -91,14 +91,89 @@ export default function App() {
     ? Math.max(0, attendees.findIndex((a) => a.id === currentAttendee.id))
     : 0;
 
-  // Divide attendees into chunks of 4 for A4 pages
+  // Divide attendees into chunks of 4 for A4 pages (filter out empty in-progress card)
+  const validSavedAttendees = attendees.filter((a) => a.name.trim() !== '');
+  const printAttendeesList = validSavedAttendees.length > 0 ? validSavedAttendees : attendees;
   const a4Pages: Attendee[][] = [];
-  for (let i = 0; i < attendees.length; i += 4) {
-    a4Pages.push(attendees.slice(i, i + 4));
+  for (let i = 0; i < printAttendeesList.length; i += 4) {
+    a4Pages.push(printAttendeesList.slice(i, i + 4));
   }
   if (a4Pages.length === 0) {
     a4Pages.push([currentAttendee]);
   }
+
+  // Save attendee from card editor to database & clear form for next entry
+  const handleSaveCardAttendee = async (attendeeToSave: Attendee) => {
+    let finalPhoto = attendeeToSave.photoUrl || '';
+    if (backendStatus.online && finalPhoto.startsWith('data:image')) {
+      try {
+        const uploadedUrl = await api.uploadPhoto(finalPhoto, attendeeToSave.id);
+        if (uploadedUrl) finalPhoto = uploadedUrl;
+      } catch (err) {
+        console.warn('Backend photo upload note:', err);
+      }
+    }
+
+    const attendeeId = attendeeToSave.id || `att-${Date.now()}`;
+    const finalized: Attendee = { ...attendeeToSave, id: attendeeId, photoUrl: finalPhoto };
+
+    // 1. Add or update in state
+    setAttendees((prev) => {
+      const exists = prev.some((a) => a.id === attendeeId);
+      if (exists) {
+        return prev.map((a) => (a.id === attendeeId ? finalized : a));
+      } else {
+        return [...prev, finalized];
+      }
+    });
+
+    // 2. Persist to database
+    if (backendStatus.online) {
+      try {
+        await api.updateAttendee(finalized);
+      } catch {
+        try {
+          await api.createAttendee(finalized);
+        } catch (e) {
+          console.warn('Backend save attendee error:', e);
+        }
+      }
+    }
+
+    // 3. Clear form by generating a new blank attendee for next entry
+    const savedCount = attendees.filter((a) => a.name.trim() !== '').length + 1;
+    const nextReg = toBengaliNumber(String(1000 + savedCount + 1));
+    const blankAttendee: Attendee = {
+      id: `att-${Date.now() + 1}`,
+      regNo: nextReg,
+      name: '',
+      school: finalized.school || 'রংপুর জেলা স্কুল',
+      district: finalized.district || 'রংপুর',
+      guests: '১',
+      phone: '',
+      photoUrl: '',
+    };
+
+    setAttendees((prev) => [...prev, blankAttendee]);
+    setSelectedAttendeeId(blankAttendee.id);
+  };
+
+  const handleClearCardForm = () => {
+    const savedCount = attendees.filter((a) => a.name.trim() !== '').length;
+    const nextReg = toBengaliNumber(String(1001 + savedCount));
+    const blankAttendee: Attendee = {
+      id: `att-${Date.now() + 1}`,
+      regNo: nextReg,
+      name: '',
+      school: currentAttendee.school || 'রংপুর জেলা স্কুল',
+      district: currentAttendee.district || 'রংপুর',
+      guests: '১',
+      phone: '',
+      photoUrl: '',
+    };
+    setAttendees((prev) => [...prev, blankAttendee]);
+    setSelectedAttendeeId(blankAttendee.id);
+  };
 
   // Handlers
   const handleUpdateAttendee = async (updated: Attendee) => {
@@ -396,10 +471,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Logo & Title */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-md shadow-emerald-900/40">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div>
+                        <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base sm:text-lg font-bold text-white tracking-tight">
                   {config.mainTitle} - ইনভাইটেশন কার্ড জেনারেটর
@@ -613,6 +685,9 @@ export default function App() {
                 config={config}
                 onUpdateAttendee={handleUpdateAttendee}
                 onUpdateConfig={handleUpdateConfig}
+                onSaveAttendee={handleSaveCardAttendee}
+                onClearForm={handleClearCardForm}
+                onViewTable={() => setActiveView('table')}
               />
             </div>
           </div>
