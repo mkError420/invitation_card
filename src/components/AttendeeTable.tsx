@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UserPlus, Trash2, Search, Eye, Image, RefreshCw, Images, CheckCircle } from 'lucide-react';
+import { UserPlus, Trash2, Search, Eye, Image, RefreshCw, Images, CheckCircle, Camera } from 'lucide-react';
 import { Attendee } from '../types';
 import { matchPhotosToAttendees } from '../utils/csvHelper';
 
@@ -238,14 +238,69 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
               />
             </div>
             <div>
-              <label className="block text-slate-400 mb-1">ছবির URL (Image)</label>
-              <input
-                type="text"
-                placeholder="https://... (ঐচ্ছিক)"
-                value={newAttendee.photoUrl}
-                onChange={(e) => setNewAttendee({ ...newAttendee, photoUrl: e.target.value })}
-                className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
-              />
+              <label className="block text-slate-400 mb-1">ছবি আপলোড</label>
+              <div className="flex items-center gap-2">
+                {newAttendee.photoUrl ? (
+                  <div className="flex items-center gap-2 w-full">
+                    <img
+                      src={newAttendee.photoUrl}
+                      alt="Preview"
+                      className="w-8 h-8 rounded-full object-cover border-2 border-emerald-500 shrink-0 bg-slate-850"
+                    />
+                    <label className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg cursor-pointer transition text-[11px] font-medium border border-slate-700">
+                      <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>ছবি পরিবর্তন</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              if (typeof reader.result === 'string') {
+                                setNewAttendee({ ...newAttendee, photoUrl: reader.result });
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setNewAttendee({ ...newAttendee, photoUrl: '' })}
+                      className="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 rounded-lg transition"
+                      title="ছবি বাদ দিন"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-dashed border-slate-700 hover:border-emerald-500 rounded-lg cursor-pointer transition text-slate-300 text-xs font-medium">
+                    <Camera className="w-4 h-4 text-emerald-400" />
+                    <span>ছবি নির্বাচন করুন</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            if (typeof reader.result === 'string') {
+                              setNewAttendee({ ...newAttendee, photoUrl: reader.result });
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
             </div>
           </div>
 
