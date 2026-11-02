@@ -123,16 +123,35 @@ export const api = {
   },
 
   /**
-   * Delete attendee from database (uses POST with action=delete)
+   * Delete attendee from database (uses POST with action=delete, with fallback)
    */
   async deleteAttendee(id: string): Promise<boolean> {
-    const res = await fetch(`${API_BASE}/attendees.php?action=delete&id=${encodeURIComponent(id)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, action: 'delete' }),
-    });
-    const json = await res.json();
-    return !!json.success;
+    try {
+      const res = await fetch(`${API_BASE}/attendees.php?action=delete&id=${encodeURIComponent(id)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'delete' }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        return !!json.success;
+      }
+    } catch {
+      // Fallback direct port 8000
+      try {
+        const fallbackUrl = `http://127.0.0.1:8000/api/attendees.php?action=delete&id=${encodeURIComponent(id)}`;
+        const res = await fetch(fallbackUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, action: 'delete' }),
+        });
+        const json = await res.json();
+        return !!json.success;
+      } catch {
+        return false;
+      }
+    }
+    return false;
   },
 
   /**

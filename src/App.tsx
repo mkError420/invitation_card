@@ -24,11 +24,50 @@ import { preloadTemplateImage } from './utils/cardCanvasRenderer';
 import { toBengaliNumber, getNextRegNo, formatRegNo } from './utils/bengaliNumerals';
 
 export default function App() {
-  const [attendees, setAttendees] = useState<Attendee[]>(INITIAL_ATTENDEES);
-  const [selectedAttendeeId, setSelectedAttendeeId] = useState<string>(INITIAL_ATTENDEES[0].id);
+  const [attendees, setAttendees] = useState<Attendee[]>(() => {
+    try {
+      const saved = localStorage.getItem('somaborton_attendees_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return INITIAL_ATTENDEES;
+  });
+
+  const [selectedAttendeeId, setSelectedAttendeeId] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('somaborton_attendees_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.id) {
+          return parsed[0].id;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return INITIAL_ATTENDEES[0].id;
+  });
+
   const [config, setConfig] = useState<EventConfig>(DEFAULT_EVENT_CONFIG);
   const [backendStatus, setBackendStatus] = useState<BackendStatus>({ online: false });
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+
+  // Sync attendees changes to localStorage
+  useEffect(() => {
+    if (attendees && attendees.length > 0) {
+      try {
+        localStorage.setItem('somaborton_attendees_v1', JSON.stringify(attendees));
+      } catch (err) {
+        console.warn('LocalStorage save attendees failed:', err);
+      }
+    }
+  }, [attendees]);
 
   // Active view tab: 'single' | 'a4print' | 'table'
   const [activeView, setActiveView] = useState<'single' | 'a4print' | 'table'>('single');
@@ -247,8 +286,9 @@ export default function App() {
       return;
     }
 
-    // 1. Immediately remove from frontend state
+    // 1. Immediately remove from frontend state and localStorage
     const filtered = attendees.filter((a) => a.id !== id);
+    let nextAttendees: Attendee[];
     if (filtered.length === 0) {
       const blankAttendee: Attendee = {
         id: `att-${Date.now()}`,
@@ -260,27 +300,36 @@ export default function App() {
         phone: '',
         photoUrl: '',
       };
-      setAttendees([blankAttendee]);
+      nextAttendees = [blankAttendee];
+      setAttendees(nextAttendees);
       setSelectedAttendeeId(blankAttendee.id);
     } else {
-      setAttendees(filtered);
+      nextAttendees = filtered;
+      setAttendees(nextAttendees);
       if (selectedAttendeeId === id) {
         setSelectedAttendeeId(filtered[0].id);
       }
     }
 
-    // 2. Permanently delete from backend database
-    if (backendStatus.online) {
-      try {
-        await api.deleteAttendee(id);
-      } catch (err) {
-        console.warn('Backend delete attendee failed:', err);
-        if (target?.regNo) {
-          try {
-            await api.deleteAttendee(target.regNo);
-          } catch (e2) {
-            console.warn('Backend delete by regNo failed:', e2);
-          }
+    try {
+      localStorage.setItem('somaborton_attendees_v1', JSON.stringify(nextAttendees));
+    } catch (e) {
+      console.warn('LocalStorage save attendees failed:', e);
+    }
+
+    // 2. Permanently delete from backend database (SQLite / MySQL)
+    try {
+      const deleted = await api.deleteAttendee(id);
+      if (!deleted && target?.regNo) {
+        await api.deleteAttendee(target.regNo);
+      }
+    } catch (err) {
+      console.warn('Backend delete attendee failed:', err);
+      if (target?.regNo) {
+        try {
+          await api.deleteAttendee(target.regNo);
+        } catch (e2) {
+          console.warn('Backend delete by regNo failed:', e2);
         }
       }
     }

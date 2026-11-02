@@ -71,7 +71,19 @@ try {
                 exit;
             }
 
-            if ($act === 'update' || $id) {
+            if ($act === 'delete') {
+                $targetId = $id ?: ($input['id'] ?? null);
+                if (!$targetId) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Attendee ID is required for deletion'], JSON_UNESCAPED_UNICODE);
+                    exit;
+                }
+                $deleted = $model->delete($targetId);
+                echo json_encode(['success' => true, 'deleted' => $deleted], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
+            if ($act === 'update' || ($id && $act !== 'create')) {
                 $targetId = $id ?: ($input['id'] ?? null);
                 if (!$targetId) {
                     http_response_code(400);
@@ -85,18 +97,6 @@ try {
                     exit;
                 }
                 echo json_encode(['success' => true, 'data' => $updated], JSON_UNESCAPED_UNICODE);
-                exit;
-            }
-
-            if ($act === 'delete') {
-                $targetId = $id ?: ($input['id'] ?? null);
-                if (!$targetId) {
-                    http_response_code(400);
-                    echo json_encode(['success' => false, 'error' => 'Attendee ID is required for deletion'], JSON_UNESCAPED_UNICODE);
-                    exit;
-                }
-                $deleted = $model->delete($targetId);
-                echo json_encode(['success' => true, 'deleted' => $deleted], JSON_UNESCAPED_UNICODE);
                 exit;
             }
 
