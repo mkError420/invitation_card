@@ -18,8 +18,11 @@ export function getRegFontFamily(fontChoice?: string): string {
   if (fontChoice === 'solaiman_kalpurush') {
     return "'SolaimanLipi', 'Kalpurush', sans-serif";
   }
-  // Default and 'kalpurush' and 'kalpurush_solaiman'
-  return "'Kalpurush', 'SolaimanLipi', sans-serif";
+  if (fontChoice === 'kalpurush' || fontChoice === 'kalpurush_solaiman') {
+    return "'Kalpurush', 'SolaimanLipi', sans-serif";
+  }
+  // Default: 'solaiman_kalpurush' (আইডি সোলাইমানলিপি)
+  return "'SolaimanLipi', 'Kalpurush', sans-serif";
 }
 
 export function getFieldsFontFamily(fontChoice?: string): string {
@@ -29,7 +32,7 @@ export function getFieldsFontFamily(fontChoice?: string): string {
   if (fontChoice === 'kalpurush_solaiman') {
     return "'SolaimanLipi', 'Kalpurush', sans-serif";
   }
-  // Default and 'kalpurush' and 'solaiman_kalpurush'
+  // Default and 'kalpurush' and 'solaiman_kalpurush' (তথ্য কালপুরুষ)
   return "'Kalpurush', 'SolaimanLipi', sans-serif";
 }
 

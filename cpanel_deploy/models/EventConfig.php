@@ -27,7 +27,7 @@ class EventConfigModel {
             'showCutMarks' => (bool)($row['show_cut_marks'] ?? 1),
             'photoScale' => (int)($row['photo_scale'] ?? 98),
             'photoOffsetY' => (int)($row['photo_offset_y'] ?? 0),
-            'fontChoice' => (string)($row['font_choice'] ?? 'kalpurush'),
+            'fontChoice' => (string)($row['font_choice'] ?? 'solaiman_kalpurush'),
         ];
     }
 
@@ -65,11 +65,11 @@ class EventConfigModel {
         $showCutMarks = isset($data['showCutMarks']) ? ($data['showCutMarks'] ? 1 : 0) : ($current['showCutMarks'] ? 1 : 0);
         $photoScale = isset($data['photoScale']) ? (int)$data['photoScale'] : $current['photoScale'];
         $photoOffsetY = isset($data['photoOffsetY']) ? (int)$data['photoOffsetY'] : $current['photoOffsetY'];
-        $fontChoice = $data['fontChoice'] ?? $data['font_choice'] ?? ($current['fontChoice'] ?? 'kalpurush');
+        $fontChoice = $data['fontChoice'] ?? $data['font_choice'] ?? ($current['fontChoice'] ?? 'solaiman_kalpurush');
 
         // Check/ensure font_choice column exists
         try {
-            $this->db->exec("ALTER TABLE event_config ADD COLUMN font_choice VARCHAR(50) DEFAULT 'kalpurush'");
+            $this->db->exec("ALTER TABLE event_config ADD COLUMN font_choice VARCHAR(50) DEFAULT 'solaiman_kalpurush'");
         } catch (Exception $e) {
             // column already exists
         }

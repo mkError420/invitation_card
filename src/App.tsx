@@ -129,7 +129,10 @@ export default function App() {
               setSelectedAttendeeId(blankAttendee.id);
             }
             if (remoteConfig && remoteConfig.mainTitle) {
-              setConfig(remoteConfig);
+              setConfig({
+                ...remoteConfig,
+                fontChoice: remoteConfig.fontChoice || 'solaiman_kalpurush',
+              });
             }
           }
         }

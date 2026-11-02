@@ -48,7 +48,7 @@ export const DEFAULT_EVENT_CONFIG: EventConfig = {
   showCutMarks: true,
   photoScale: 98,
   photoOffsetY: 0,
-  fontChoice: 'kalpurush',
+  fontChoice: 'solaiman_kalpurush',
 };
 
 export const INITIAL_ATTENDEES: Attendee[] = [
