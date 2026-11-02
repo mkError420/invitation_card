@@ -149,6 +149,13 @@
     background: #ffffff !important;
   }
 
+  .print-empty-slot {
+    border: none !important;
+    background: transparent !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+  }
+
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;

@@ -112,14 +112,31 @@ export const api = {
    * Update attendee in database (uses POST with action=update for maximum compatibility with InfinityFree & Apache)
    */
   async updateAttendee(attendee: Attendee): Promise<Attendee> {
-    const res = await fetch(`${API_BASE}/attendees.php?action=update&id=${encodeURIComponent(attendee.id)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(attendee),
-    });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.error || 'Failed to update attendee');
-    return json.data;
+    try {
+      const res = await fetch(`${API_BASE}/attendees.php?action=update&id=${encodeURIComponent(attendee.id)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(attendee),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Failed to update attendee');
+      return json.data;
+    } catch (err: any) {
+      // Fallback direct port 8000 in case proxy is not active
+      try {
+        const fallbackUrl = `http://127.0.0.1:8000/api/attendees.php?action=update&id=${encodeURIComponent(attendee.id)}`;
+        const res = await fetch(fallbackUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(attendee),
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Failed to update attendee');
+        return json.data;
+      } catch {
+        throw err;
+      }
+    }
   },
 
   /**

@@ -1,0 +1,31 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # 1. Protect sensitive files (.env, sqlite, sql files)
+    <FilesMatch "^(\..*|.*\.sqlite|.*\.sql)$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+
+    # 2. Block direct access to PHP internal folders
+    RewriteRule ^(config|models)/ - [F,L]
+
+    # 3. Clean API URL Rewrites
+    RewriteRule ^api/attendees/?$ api/attendees.php [L,QSA]
+    RewriteRule ^api/config/?$ api/config.php [L,QSA]
+    RewriteRule ^api/upload/?$ api/upload.php [L,QSA]
+    RewriteRule ^api/status/?$ api/status.php [L,QSA]
+    RewriteRule ^api/?$ api/index.php [L,QSA]
+
+    # 4. Serve existing files directly
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # 5. SPA Route Fallback
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+# Disable Directory Browsing
+Options -Indexes

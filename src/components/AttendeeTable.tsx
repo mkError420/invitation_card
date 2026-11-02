@@ -1,33 +1,52 @@
 import React, { useState } from 'react';
-import { UserPlus, Trash2, Search, Eye, Image, CheckCircle, Camera, Printer } from 'lucide-react';
-import { Attendee } from '../types';
+import {
+  UserPlus,
+  Trash2,
+  Search,
+  Eye,
+  Image,
+  CheckCircle,
+  Camera,
+  Printer,
+  Pencil,
+} from 'lucide-react';
+import { Attendee, EventConfig, DEFAULT_EVENT_CONFIG } from '../types';
 import { getNextRegNo, formatRegNo } from '../utils/bengaliNumerals';
+import { EditAttendeeModal } from './EditAttendeeModal';
+import { PrintAttendeeModal } from './PrintAttendeeModal';
 
 interface AttendeeTableProps {
   attendees: Attendee[];
   selectedAttendeeId: string;
+  config?: EventConfig;
   onSelectAttendee: (id: string) => void;
   onAddAttendee: (attendee: Omit<Attendee, 'id'>) => void;
-  onUpdateAttendee: (attendee: Attendee) => void;
+  onUpdateAttendee: (attendee: Attendee) => Promise<boolean | void> | void;
   onDeleteAttendee: (id: string) => void;
   onPhotoUpload: (id: string, photoUrl: string) => void;
   onBulkPrint?: () => void;
+  onPrintAttendee?: (attendee: Attendee, mode: 'single' | 'sheet4') => void;
   isPreparingPrint?: boolean;
 }
 
 export const AttendeeTable: React.FC<AttendeeTableProps> = ({
   attendees,
   selectedAttendeeId,
+  config = DEFAULT_EVENT_CONFIG,
   onSelectAttendee,
   onAddAttendee,
   onUpdateAttendee,
   onDeleteAttendee,
   onPhotoUpload,
   onBulkPrint,
+  onPrintAttendee,
   isPreparingPrint = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingAttendee, setEditingAttendee] = useState<Attendee | null>(null);
+  const [printingAttendee, setPrintingAttendee] = useState<Attendee | null>(null);
+
   const [newAttendee, setNewAttendee] = useState({
     regNo: '',
     name: '',
@@ -81,6 +100,13 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
     }
   };
 
+  const handlePrintModalTrigger = (attendee: Attendee, mode: 'single' | 'sheet4') => {
+    if (onPrintAttendee) {
+      onPrintAttendee(attendee, mode);
+    }
+    setPrintingAttendee(null);
+  };
+
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg flex flex-col font-bangla">
       {/* Header & Controls */}
@@ -93,7 +119,7 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            যে কোনো সদস্যের কার্ড প্রিভিউ দেখতে তাদের সারিতে ক্লিক করুন
+            প্রতিটি সদস্যের জন্য সরাসরি প্রিন্ট, এডিট বা প্রিভিউ অপশন ব্যবহার করুন
           </p>
         </div>
 
@@ -270,7 +296,7 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
           <div className="flex justify-end gap-2 pt-1">
             <button
               type="submit"
-              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold"
+              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold cursor-pointer"
             >
               সংরক্ষণ করুন
             </button>
@@ -383,28 +409,50 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
 
                     {/* Actions */}
                     <td
-                      className="p-3 text-right space-x-1"
+                      className="p-3 text-right"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <button
-                        onClick={() => onSelectAttendee(att.id)}
-                        className={`p-1.5 rounded-md transition ${
-                          isSelected
-                            ? 'text-emerald-400 bg-emerald-500/10'
-                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                        }`}
-                        title="কার্ড প্রিভিউ দেখুন"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="inline-flex items-center gap-1 justify-end">
+                        {/* 1. Preview Button */}
+                        <button
+                          onClick={() => onSelectAttendee(att.id)}
+                          className={`p-1.5 rounded-lg transition ${
+                            isSelected
+                              ? 'text-emerald-400 bg-emerald-500/10'
+                              : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                          }`}
+                          title="কার্ড প্রিভিউ দেখুন"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
 
-                      <button
-                        onClick={() => onDeleteAttendee(att.id)}
-                        className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition"
-                        title="ডাটাবেজ ও তালিকা থেকে স্থায়ীভাবে মুছে ফেলুন"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                        {/* 2. Edit Button (Opens Popup for editing) */}
+                        <button
+                          onClick={() => setEditingAttendee(att)}
+                          className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition"
+                          title="সদস্য তথ্য এডিট করুন (পপআপ)"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* 3. Print Button (Opens Print Popup / Triggers Print) */}
+                        <button
+                          onClick={() => setPrintingAttendee(att)}
+                          className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition"
+                          title="এই সদস্যের কার্ড প্রিন্ট করুন"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* 4. Delete Button */}
+                        <button
+                          onClick={() => onDeleteAttendee(att.id)}
+                          className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+                          title="ডাটাবেজ ও তালিকা থেকে স্থায়ীভাবে মুছে ফেলুন"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -413,6 +461,26 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* Edit Attendee Modal */}
+      <EditAttendeeModal
+        isOpen={!!editingAttendee}
+        attendee={editingAttendee}
+        onClose={() => setEditingAttendee(null)}
+        onSave={async (updated) => {
+          await onUpdateAttendee(updated);
+        }}
+      />
+
+      {/* Print Single Attendee Modal */}
+      <PrintAttendeeModal
+        isOpen={!!printingAttendee}
+        attendee={printingAttendee}
+        config={config}
+        onClose={() => setPrintingAttendee(null)}
+        onPrint={handlePrintModalTrigger}
+        isPreparingPrint={isPreparingPrint}
+      />
     </div>
   );
 };

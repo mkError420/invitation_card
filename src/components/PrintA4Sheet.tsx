@@ -80,8 +80,8 @@ export const PrintA4Sheet: React.FC<PrintA4SheetProps> = ({
                   />
                 </div>
               ) : (
-                <div className="w-full h-full border border-dashed border-slate-200 rounded-[14px] flex items-center justify-center text-slate-300 text-xs font-bangla">
-                  খালি স্লট
+                <div className="w-full h-full border border-dashed border-slate-200 rounded-[14px] flex items-center justify-center text-slate-300 text-xs font-bangla print-empty-slot">
+                  <span className="no-print">খালি স্লট</span>
                 </div>
               )}
             </div>

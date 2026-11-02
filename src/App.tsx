@@ -77,7 +77,20 @@ export default function App() {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isExportingPng, setIsExportingPng] = useState(false);
   const [isPreparingPrint, setIsPreparingPrint] = useState(false);
+  const [singlePrintTarget, setSinglePrintTarget] = useState<{ attendee: Attendee; mode: 'single' | 'sheet4' } | null>(null);
   const [pdfProgress, setPdfProgress] = useState<{ current: number; total: number; stage: string } | null>(null);
+
+  // Clean up single print target after printing finishes
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setSinglePrintTarget(null);
+      setIsPreparingPrint(false);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, []);
 
   // Preload template image immediately on startup & initialize database sync
   useEffect(() => {
@@ -236,25 +249,43 @@ export default function App() {
   };
 
   // Handlers
-  const handleUpdateAttendee = async (updated: Attendee) => {
+  const handleUpdateAttendee = async (updated: Attendee): Promise<boolean> => {
+    // 1. Update React state immediately
     setAttendees((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
 
+    // 2. Persist to localStorage immediately
+    try {
+      const currentList = attendees.map((a) => (a.id === updated.id ? updated : a));
+      localStorage.setItem('somaborton_attendees_v1', JSON.stringify(currentList));
+    } catch (e) {
+      console.warn('LocalStorage save attendees failed:', e);
+    }
+
+    // 3. Persist to backend database (SQLite / MySQL)
     if (backendStatus.online) {
+      let attendeeToSave = updated;
       if (updated.photoUrl && updated.photoUrl.startsWith('data:image')) {
         try {
           const serverUrl = await api.uploadPhoto(updated.photoUrl, updated.id);
-          const withServerPhoto = { ...updated, photoUrl: serverUrl };
-          setAttendees((prev) => prev.map((a) => (a.id === updated.id ? withServerPhoto : a)));
-          await api.updateAttendee(withServerPhoto);
-          return;
+          if (serverUrl) {
+            attendeeToSave = { ...updated, photoUrl: serverUrl };
+            setAttendees((prev) => prev.map((a) => (a.id === updated.id ? attendeeToSave : a)));
+            const updatedWithPhoto = attendees.map((a) => (a.id === updated.id ? attendeeToSave : a));
+            localStorage.setItem('somaborton_attendees_v1', JSON.stringify(updatedWithPhoto));
+          }
         } catch (err) {
           console.warn('Backend image upload failed:', err);
         }
       }
-      api.updateAttendee(updated).catch((err) => {
+
+      try {
+        await api.updateAttendee(attendeeToSave);
+      } catch (err) {
         console.warn('Backend update attendee failed:', err);
-      });
+        throw err;
+      }
     }
+    return true;
   };
 
   const handleAddAttendee = async (newAtt: Omit<Attendee, 'id'>) => {
@@ -526,13 +557,17 @@ export default function App() {
     }
   };
 
-  // Browser Direct Print Trigger
+  // Browser Direct Bulk Print Trigger
   const handleBrowserPrint = async () => {
+    setSinglePrintTarget(null);
     setIsPreparingPrint(true);
     try {
       if (document.fonts) {
         await document.fonts.ready;
       }
+      // Give React a tick to render full a4Pages in .print-only
+      await new Promise((resolve) => setTimeout(resolve, 80));
+
       const printImages = Array.from(
         document.querySelectorAll('.print-only img')
       ) as HTMLImageElement[];
@@ -549,6 +584,40 @@ export default function App() {
       setTimeout(() => {
         window.print();
       }, 120);
+    }
+  };
+
+  // Browser Single Attendee Print Trigger
+  const handlePrintSingleAttendee = async (attendee: Attendee, mode: 'single' | 'sheet4' = 'single') => {
+    setIsPreparingPrint(true);
+    setSinglePrintTarget({ attendee, mode });
+
+    try {
+      if (document.fonts) {
+        await document.fonts.ready;
+      }
+      // Give React a tick to update .print-only container with singlePrintTarget
+      await new Promise((resolve) => setTimeout(resolve, 80));
+
+      const printImages = Array.from(
+        document.querySelectorAll('.print-only img')
+      ) as HTMLImageElement[];
+      await Promise.all(
+        printImages.map((img) => {
+          if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+          return img.decode().catch(() => {});
+        })
+      );
+    } catch (err) {
+      console.warn('Single print preload warning:', err);
+    } finally {
+      setIsPreparingPrint(false);
+      setTimeout(() => {
+        window.print();
+        setTimeout(() => {
+          setSinglePrintTarget(null);
+        }, 1200);
+      }, 150);
     }
   };
 
@@ -894,6 +963,7 @@ export default function App() {
             <AttendeeTable
               attendees={attendees}
               selectedAttendeeId={selectedAttendeeId}
+              config={config}
               onSelectAttendee={(id) => {
                 setSelectedAttendeeId(id);
                 setActiveView('single');
@@ -903,6 +973,7 @@ export default function App() {
               onDeleteAttendee={handleDeleteAttendee}
               onPhotoUpload={handlePhotoUpload}
               onBulkPrint={handleBrowserPrint}
+              onPrintAttendee={handlePrintSingleAttendee}
               isPreparingPrint={isPreparingPrint}
             />
           </div>
@@ -911,16 +982,36 @@ export default function App() {
 
       {/* PRINT-ONLY SECTION (Rendered ONLY when window.print() is called) */}
       <div className="print-only">
-        {a4Pages.map((pageAttendees, pageIndex) => (
+        {singlePrintTarget ? (
           <PrintA4Sheet
-            key={`print-real-${pageIndex}`}
-            sheetId={`print-real-page-${pageIndex}`}
-            pageIndex={pageIndex}
-            totalPages={a4Pages.length}
-            attendees={pageAttendees}
+            key="print-single-target"
+            sheetId="print-single-target-page"
+            pageIndex={0}
+            totalPages={1}
+            attendees={
+              singlePrintTarget.mode === 'sheet4'
+                ? [
+                    singlePrintTarget.attendee,
+                    singlePrintTarget.attendee,
+                    singlePrintTarget.attendee,
+                    singlePrintTarget.attendee,
+                  ]
+                : [singlePrintTarget.attendee]
+            }
             config={config}
           />
-        ))}
+        ) : (
+          a4Pages.map((pageAttendees, pageIndex) => (
+            <PrintA4Sheet
+              key={`print-real-${pageIndex}`}
+              sheetId={`print-real-page-${pageIndex}`}
+              pageIndex={pageIndex}
+              totalPages={a4Pages.length}
+              attendees={pageAttendees}
+              config={config}
+            />
+          ))
+        )}
       </div>
 
       {/* CSV Uploader Modal */}
