@@ -1,0 +1,6 @@
+{
+  "name": "ইনভাইটেশন কার্ড ও আইডি জেনারেটর",
+  "description": "হুবহু প্রিভিউ, ডাইনামিক এডিটিং, CSV বাল্ক জেনারেশন এবং প্রতি A4 পেজে ৪টি কার্ড প্রিন্ট ও সরাসরি PDF ডাউনলোড সুবিধা।",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

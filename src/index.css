@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Hind Siliguri', 'Noto Sans Bengali', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+.font-bangla {
+  font-family: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif;
+}
+
+.font-anek {
+  font-family: 'Anek Bangla', 'Hind Siliguri', sans-serif;
+}
+
+.font-galada {
+  font-family: 'Galada', 'Hind Siliguri', cursive;
+}
+
+/* Screen Mode: Print-only element stays rendered offscreen so all images and fonts preload into memory */
+@media screen {
+  .print-only {
+    position: fixed;
+    top: 0;
+    left: -99999px;
+    width: 210mm;
+    opacity: 0;
+    pointer-events: none;
+    z-index: -999;
+  }
+}
+
+/* Print Specific Rules */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    width: 210mm !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Hide screen-only interactive header and main dashboard */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Ensure root wrappers do not force dark background or 100vh flex centering during print */
+  #root, #root > div {
+    background: transparent !important;
+    min-height: 0 !important;
+    height: auto !important;
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Reveal print pages cleanly */
+  .print-only {
+    position: static !important;
+    display: block !important;
+    width: 210mm !important;
+    opacity: 1 !important;
+    z-index: auto !important;
+    pointer-events: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-sheet-outer {
+    width: 210mm !important;
+    height: 297mm !important;
+    max-height: 297mm !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    overflow: hidden !important;
+  }
+
+  .print-sheet-outer:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  .print-page {
+    width: 210mm !important;
+    height: 297mm !important;
+    max-height: 297mm !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+}

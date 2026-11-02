@@ -1,0 +1,257 @@
+<?php
+require_once __DIR__ . '/../config/database.php';
+
+class AttendeeModel {
+    private PDO $db;
+
+    public function __construct() {
+        $this->db = Database::getConnection();
+    }
+
+    /**
+     * Map database row (snake_case) to client schema (camelCase)
+     */
+    public static function formatRow(array $row): array {
+        return [
+            'id' => (string)($row['id'] ?? ''),
+            'regNo' => (string)($row['reg_no'] ?? ''),
+            'name' => (string)($row['name'] ?? ''),
+            'school' => (string)($row['school'] ?? ''),
+            'district' => (string)($row['district'] ?? ''),
+            'guests' => (string)($row['guests'] ?? '১'),
+            'phone' => (string)($row['phone'] ?? ''),
+            'photoUrl' => (string)($row['photo_url'] ?? ''),
+            'createdAt' => $row['created_at'] ?? null,
+            'updatedAt' => $row['updated_at'] ?? null,
+        ];
+    }
+
+    /**
+     * Get all attendees, optionally filtered by search keyword
+     */
+    public function getAll(?string $search = null): array {
+        if ($search && trim($search) !== '') {
+            $term = '%' . trim($search) . '%';
+            $stmt = $this->db->prepare("
+                SELECT * FROM attendees 
+                WHERE name LIKE :s1 OR reg_no LIKE :s2 OR school LIKE :s3 OR district LIKE :s4 OR phone LIKE :s5
+                ORDER BY created_at ASC
+            ");
+            $stmt->execute([
+                ':s1' => $term,
+                ':s2' => $term,
+                ':s3' => $term,
+                ':s4' => $term,
+                ':s5' => $term,
+            ]);
+        } else {
+            $stmt = $this->db->query("SELECT * FROM attendees ORDER BY created_at ASC");
+        }
+
+        $rows = $stmt->fetchAll();
+        return array_map([self::class, 'formatRow'], $rows);
+    }
+
+    /**
+     * Get attendee by ID
+     */
+    public function getById(string $id): ?array {
+        $stmt = $this->db->prepare("SELECT * FROM attendees WHERE id = :id LIMIT 1");
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch();
+        return $row ? self::formatRow($row) : null;
+    }
+
+    /**
+     * Create a new attendee
+     */
+    public function create(array $data): array {
+        $id = !empty($data['id']) ? (string)$data['id'] : 'att-' . round(microtime(true) * 1000);
+        $regNo = (string)($data['regNo'] ?? $data['reg_no'] ?? '');
+        $name = trim((string)($data['name'] ?? ''));
+        $school = (string)($data['school'] ?? '');
+        $district = (string)($data['district'] ?? '');
+        $guests = (string)($data['guests'] ?? '১');
+        $phone = (string)($data['phone'] ?? '');
+        $photoUrl = (string)($data['photoUrl'] ?? $data['photo_url'] ?? '');
+
+        if (empty($name)) {
+            throw new InvalidArgumentException('Attendee name is required');
+        }
+
+        $stmt = $this->db->prepare("
+            INSERT INTO attendees (id, reg_no, name, school, district, guests, phone, photo_url, created_at, updated_at)
+            VALUES (:id, :reg_no, :name, :school, :district, :guests, :phone, :photo_url, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ");
+
+        $stmt->execute([
+            ':id' => $id,
+            ':reg_no' => $regNo,
+            ':name' => $name,
+            ':school' => $school,
+            ':district' => $district,
+            ':guests' => $guests,
+            ':phone' => $phone,
+            ':photo_url' => $photoUrl,
+        ]);
+
+        return $this->getById($id) ?? [];
+    }
+
+    /**
+     * Update existing attendee
+     */
+    public function update(string $id, array $data): ?array {
+        $current = $this->getById($id);
+        if (!$current) {
+            return null;
+        }
+
+        $regNo = array_key_exists('regNo', $data) ? $data['regNo'] : ($data['reg_no'] ?? $current['regNo']);
+        $name = array_key_exists('name', $data) ? trim($data['name']) : $current['name'];
+        $school = array_key_exists('school', $data) ? $data['school'] : $current['school'];
+        $district = array_key_exists('district', $data) ? $data['district'] : $current['district'];
+        $guests = array_key_exists('guests', $data) ? $data['guests'] : $current['guests'];
+        $phone = array_key_exists('phone', $data) ? $data['phone'] : $current['phone'];
+        $photoUrl = array_key_exists('photoUrl', $data) ? $data['photoUrl'] : ($data['photo_url'] ?? $current['photoUrl']);
+
+        $stmt = $this->db->prepare("
+            UPDATE attendees SET
+                reg_no = :reg_no,
+                name = :name,
+                school = :school,
+                district = :district,
+                guests = :guests,
+                phone = :phone,
+                photo_url = :photo_url,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = :id
+        ");
+
+        $stmt->execute([
+            ':id' => $id,
+            ':reg_no' => $regNo,
+            ':name' => $name,
+            ':school' => $school,
+            ':district' => $district,
+            ':guests' => $guests,
+            ':phone' => $phone,
+            ':photo_url' => $photoUrl,
+        ]);
+
+        return $this->getById($id);
+    }
+
+    /**
+     * Delete attendee by ID
+     */
+    public function delete(string $id): bool {
+        $stmt = $this->db->prepare("DELETE FROM attendees WHERE id = :id");
+        $stmt->execute([':id' => $id]);
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * Batch import (replace or append)
+     */
+    public function batchImport(array $attendees, string $mode = 'append'): array {
+        $this->db->beginTransaction();
+        try {
+            if ($mode === 'replace') {
+                $this->db->exec("DELETE FROM attendees");
+            }
+
+            $stmt = $this->db->prepare("
+                INSERT INTO attendees (id, reg_no, name, school, district, guests, phone, photo_url, created_at, updated_at)
+                VALUES (:id, :reg_no, :name, :school, :district, :guests, :phone, :photo_url, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ");
+
+            $idx = 1;
+            foreach ($attendees as $att) {
+                $id = !empty($att['id']) ? (string)$att['id'] : 'att-' . round(microtime(true) * 1000) . '-' . ($idx++);
+                $regNo = (string)($att['regNo'] ?? $att['reg_no'] ?? '');
+                $name = trim((string)($att['name'] ?? ''));
+                if (empty($name)) continue;
+
+                $school = (string)($att['school'] ?? '');
+                $district = (string)($att['district'] ?? '');
+                $guests = (string)($att['guests'] ?? '১');
+                $phone = (string)($att['phone'] ?? '');
+                $photoUrl = (string)($att['photoUrl'] ?? $att['photo_url'] ?? '');
+
+                // In case of conflict with existing ID in append mode:
+                if ($mode === 'append' && $this->getById($id)) {
+                    $id = 'att-' . round(microtime(true) * 1000) . '-' . ($idx++);
+                }
+
+                $stmt->execute([
+                    ':id' => $id,
+                    ':reg_no' => $regNo,
+                    ':name' => $name,
+                    ':school' => $school,
+                    ':district' => $district,
+                    ':guests' => $guests,
+                    ':phone' => $phone,
+                    ':photo_url' => $photoUrl,
+                ]);
+            }
+
+            $this->db->commit();
+            return $this->getAll();
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Reset to default or sample dataset
+     */
+    public function resetToDefault(): array {
+        $defaults = [
+            [
+                'id' => 'att-1',
+                'regNo' => '১০৩৩',
+                'name' => 'মো: নাজমুল আহসান',
+                'school' => 'রংপুর জেলা স্কুল',
+                'district' => 'রংপুর সদর, রংপুর',
+                'guests' => '২',
+                'phone' => '০১৭XXXXXXXX',
+                'photoUrl' => '',
+            ],
+            [
+                'id' => 'att-2',
+                'regNo' => '১০৩৪',
+                'name' => 'প্রকৌ. তৌহিদুল ইসলাম',
+                'school' => 'রংপুর জিলা স্কুল',
+                'district' => 'মিঠাপুকুর, রংপুর',
+                'guests' => '১',
+                'phone' => '০১৮১২৩৪৫৬৭৮',
+                'photoUrl' => '',
+            ],
+            [
+                'id' => 'att-3',
+                'regNo' => '১০৩৫',
+                'name' => 'ড. মাহমুদুল হাসান',
+                'school' => 'রংপুর সরকারি কলেজ',
+                'district' => 'পীরগঞ্জ, রংপুর',
+                'guests' => '৩',
+                'phone' => '০১৯৮৭৬৫৪৩২১',
+                'photoUrl' => '',
+            ],
+            [
+                'id' => 'att-4',
+                'regNo' => '১০৩৬',
+                'name' => 'আব্দুর রহিম সরকার',
+                'school' => 'কাউনিয়া পাইলট উচ্চ বিদ্যালয়',
+                'district' => 'কাউনিয়া, রংপুর',
+                'guests' => '২',
+                'phone' => '০১৬১১২২৩৩৪৪',
+                'photoUrl' => '',
+            ],
+        ];
+
+        return $this->batchImport($defaults, 'replace');
+    }
+}
+

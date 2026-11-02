@@ -1,0 +1,32 @@
+# InfinityFree & cPanel Optimized .htaccess
+RewriteEngine On
+RewriteBase /
+
+# Prevent directory listing without using 'Options' keyword (which InfinityFree blocks)
+IndexIgnore *
+
+# Protect sensitive files (.env, .sqlite, etc.)
+<FilesMatch "^\.(env|git|sqlite)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Allow direct access to existing files and folders (JS, CSS, images, PHP scripts)
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Clean API routing to PHP endpoints
+RewriteRule ^api/attendees/?$ api/attendees.php [L,QSA]
+RewriteRule ^api/config/?$ api/config.php [L,QSA]
+RewriteRule ^api/upload/?$ api/upload.php [L,QSA]
+RewriteRule ^api/status/?$ api/status.php [L,QSA]
+RewriteRule ^api/?$ api/index.php [L,QSA]
+
+# React SPA Fallback to index.html
+RewriteRule ^ index.html [L]
