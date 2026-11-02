@@ -253,7 +253,7 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
                     onUpdateAttendee({ ...selectedAttendee, name: e.target.value })
                   }
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-semibold focus:border-emerald-500 focus:outline-none"
-                  placeholder="মো: নাজমুল আহসান"
+                  placeholder="নাম লিখুন"
                 />
               </div>
             </div>
