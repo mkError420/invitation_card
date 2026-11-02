@@ -1,7 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { UserPlus, Trash2, Search, Eye, Image, RefreshCw, Images, CheckCircle, Camera } from 'lucide-react';
+import React, { useState } from 'react';
+import { UserPlus, Trash2, Search, Eye, Image, RefreshCw, CheckCircle, Camera, Printer } from 'lucide-react';
 import { Attendee } from '../types';
-import { matchPhotosToAttendees } from '../utils/csvHelper';
 
 interface AttendeeTableProps {
   attendees: Attendee[];
@@ -12,6 +11,8 @@ interface AttendeeTableProps {
   onDeleteAttendee: (id: string) => void;
   onLoadSampleData: () => void;
   onPhotoUpload: (id: string, photoUrl: string) => void;
+  onBulkPrint?: () => void;
+  isPreparingPrint?: boolean;
 }
 
 export const AttendeeTable: React.FC<AttendeeTableProps> = ({
@@ -23,33 +24,11 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
   onDeleteAttendee,
   onLoadSampleData,
   onPhotoUpload,
+  onBulkPrint,
+  isPreparingPrint = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
-  const [bulkPhotoMsg, setBulkPhotoMsg] = useState<string | null>(null);
-  const bulkPhotoInputRef = useRef<HTMLInputElement>(null);
-
-  const handleBulkPhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    try {
-      const fileList = Array.from(files);
-      const { updatedAttendees, matchedCount } = await matchPhotosToAttendees(fileList, attendees);
-
-      for (const att of updatedAttendees) {
-        const original = attendees.find((a) => a.id === att.id);
-        if (original && att.photoUrl && att.photoUrl !== original.photoUrl) {
-          onPhotoUpload(att.id, att.photoUrl);
-        }
-      }
-
-      setBulkPhotoMsg(`সফলভাবে ${matchedCount} জন সদস্যের ছবি যুক্ত ও সংরক্ষণ করা হয়েছে!`);
-      setTimeout(() => setBulkPhotoMsg(null), 6000);
-    } catch (err: any) {
-      alert('ছবি আপলোডে সমস্যা হয়েছে: ' + (err?.message || ''));
-    }
-  };
   const [newAttendee, setNewAttendee] = useState({
     regNo: '',
     name: '',
@@ -118,31 +97,26 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>নতুন সদস্য যোগ</span>
-          </button>
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {onBulkPrint && (
+            <button
+              onClick={onBulkPrint}
+              disabled={isPreparingPrint || attendees.length === 0}
+              title="সকল নিবন্ধিত সদস্যের কার্ড একসাথে A4 সাইজে (৪টি/পেজ) সরাসরি প্রিন্ট করুন"
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition shadow-md cursor-pointer"
+            >
+              <Printer className="w-4 h-4 text-white" />
+              <span>{isPreparingPrint ? 'প্রস্তুত হচ্ছে...' : 'Bulk Print (সব কার্ড)'}</span>
+            </button>
+          )}
 
           <button
-            onClick={() => bulkPhotoInputRef.current?.click()}
-            title="কম্পিউটার থেকে সদস্যদের ছবিসমূহ একসাথে নির্বাচন করুন (যেমন: 1001.jpg, 1002.png)"
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition shadow-xs"
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-lg text-xs font-semibold transition border border-slate-700"
           >
-            <Images className="w-4 h-4" />
-            <span>বাল্ক ছবি আপলোড</span>
+            <UserPlus className="w-4 h-4 text-emerald-400" />
+            <span>নতুন সদস্য যোগ</span>
           </button>
-          <input
-            ref={bulkPhotoInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleBulkPhotos}
-          />
 
           <button
             onClick={onLoadSampleData}
@@ -154,13 +128,6 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
           </button>
         </div>
       </div>
-
-      {bulkPhotoMsg && (
-        <div className="mb-3 p-2.5 bg-emerald-950/60 border border-emerald-700 text-emerald-300 rounded-xl text-xs flex items-center gap-2">
-          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{bulkPhotoMsg}</span>
-        </div>
-      )}
 
       {/* Quick Add Form Modal/Drawer */}
       {showAddForm && (

@@ -724,6 +724,8 @@ export default function App() {
               onDeleteAttendee={handleDeleteAttendee}
               onLoadSampleData={handleLoadSampleData}
               onPhotoUpload={handlePhotoUpload}
+              onBulkPrint={handleBrowserPrint}
+              isPreparingPrint={isPreparingPrint}
             />
           </div>
         )}
