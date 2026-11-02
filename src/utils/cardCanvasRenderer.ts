@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { Attendee, EventConfig, DEFAULT_EVENT_CONFIG } from '../types';
+import { normalizeImageUrl } from './csvHelper';
 
 // Cache for preloaded template image
 let cachedTemplateImage: HTMLImageElement | null = null;
@@ -63,7 +64,7 @@ function loadAttendeePhoto(photoUrl: string): Promise<HTMLImageElement> {
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('Failed to load attendee photo'));
-    img.src = photoUrl;
+    img.src = normalizeImageUrl(photoUrl);
   });
 }
 

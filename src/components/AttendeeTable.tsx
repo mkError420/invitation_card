@@ -32,6 +32,7 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
     district: 'রংপুর',
     guests: '১',
     phone: '০১৭XXXXXXXX',
+    photoUrl: '',
   });
 
   const filteredAttendees = attendees.filter(
@@ -58,6 +59,7 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
       district: 'রংপুর',
       guests: '১',
       phone: '০১৭XXXXXXXX',
+      photoUrl: '',
     });
     setShowAddForm(false);
   };
@@ -183,6 +185,16 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
                 type="text"
                 value={newAttendee.phone}
                 onChange={(e) => setNewAttendee({ ...newAttendee, phone: e.target.value })}
+                className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-400 mb-1">ছবির URL (Image)</label>
+              <input
+                type="text"
+                placeholder="https://... (ঐচ্ছিক)"
+                value={newAttendee.photoUrl}
+                onChange={(e) => setNewAttendee({ ...newAttendee, photoUrl: e.target.value })}
                 className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
               />
             </div>

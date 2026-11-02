@@ -118,19 +118,22 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
             }}
           >
             <div className="relative w-full h-full rounded-full overflow-hidden shadow-xs flex items-center justify-center bg-white border border-white/80">
-              {attendee.photoUrl ? (
+              {/* Default placeholder avatar if no custom photo uploaded yet or while loading */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-emerald-50 text-emerald-800">
+                <UserIcon className="w-[50%] h-[50%] text-emerald-700/60" />
+              </div>
+
+              {attendee.photoUrl && (
                 <img
                   src={attendee.photoUrl}
                   alt={attendee.name}
-                  className="w-full h-full object-cover"
-                  crossOrigin="anonymous"
+                  className="absolute inset-0 w-full h-full object-cover"
                   loading="eager"
+                  onError={(e) => {
+                    // Hide if failed to load so placeholder avatar remains visible
+                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                  }}
                 />
-              ) : (
-                // Default placeholder avatar if no custom photo uploaded yet
-                <div className="w-full h-full flex flex-col items-center justify-center bg-emerald-50 text-emerald-800">
-                  <UserIcon className="w-[50%] h-[50%] text-emerald-700/60" />
-                </div>
               )}
 
               {/* Hover to upload photo in preview mode */}

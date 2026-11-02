@@ -1,8 +1,7 @@
-<IfModule mod_rewrite.c>
+# InfinityFree & Apache Safe .htaccess (No BOM, No Options keyword)
 RewriteEngine On
-RewriteBase /
 
-# API clean routing to PHP endpoints
+# Clean API routing to PHP endpoints
 RewriteRule ^api/attendees/?$ api/attendees.php [L,QSA]
 RewriteRule ^api/config/?$ api/config.php [L,QSA]
 RewriteRule ^api/upload/?$ api/upload.php [L,QSA]
@@ -10,9 +9,9 @@ RewriteRule ^api/status/?$ api/status.php [L,QSA]
 RewriteRule ^api/?$ api/index.php [L,QSA]
 
 # Allow direct access to existing files and folders (JS, CSS, images, fonts, PHP scripts, uploads)
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
 
 # React SPA Fallback to index.html
-RewriteRule ^(.*)$ index.html [L,QSA]
-</IfModule>
+RewriteRule ^ index.html [L]

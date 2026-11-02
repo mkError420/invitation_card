@@ -92,8 +92,11 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({
           <div className="bg-emerald-950/40 border border-emerald-800/60 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h4 className="text-sm font-semibold text-emerald-300">CSV ফরম্যাট কেমন হবে?</h4>
-              <p className="text-xs text-emerald-400/80 mt-0.5">
-                কলাম: নিবন্ধন নং, নাম, স্কুল, জেলা অবস্থান, অতিথি, মোবাইল নম্বর
+              <p className="text-xs text-emerald-400/90 mt-0.5">
+                কলামসমূহ: নিবন্ধন নং, নাম, স্কুল, জেলা অবস্থান, অতিথি, মোবাইল নম্বর, <span className="text-white font-bold underline">Image</span>
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                (Image কলামে ছবির সরাসরি URL বা ড্রাইভ লিংক দিন, যা স্বয়ংক্রিয়ভাবে কার্ডের ছবির অংশে সেট হয়ে যাবে)
               </p>
             </div>
             <button
@@ -184,6 +187,7 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({
                 <table className="w-full text-left">
                   <thead className="bg-slate-800 text-slate-300 sticky top-0">
                     <tr>
+                      <th className="p-2 w-12 text-center">Image</th>
                       <th className="p-2">নিবন্ধন নং</th>
                       <th className="p-2">নাম</th>
                       <th className="p-2">স্কুল</th>
@@ -194,6 +198,20 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({
                   <tbody className="divide-y divide-slate-800 text-slate-400">
                     {parsedData.slice(0, 10).map((row, idx) => (
                       <tr key={idx} className="hover:bg-slate-800/40">
+                        <td className="p-2 text-center">
+                          {row.photoUrl ? (
+                            <img
+                              src={row.photoUrl}
+                              alt={row.name}
+                              className="w-7 h-7 rounded-full object-cover mx-auto border border-emerald-500/60 bg-emerald-950/40"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <span className="text-[10px] text-slate-500">ডিফল্ট</span>
+                          )}
+                        </td>
                         <td className="p-2 font-mono text-emerald-400 font-semibold">{row.regNo}</td>
                         <td className="p-2 text-slate-200 font-medium">{row.name}</td>
                         <td className="p-2">{row.school}</td>

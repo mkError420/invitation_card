@@ -57,11 +57,10 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
       <div className="flex border-b border-slate-800 bg-slate-850/70 p-1.5 gap-1 text-xs">
         <button
           onClick={() => setActiveTab('attendee')}
-          className={`flex-1 py-2 px-2.5 rounded-xl font-semibold flex items-center justify-center gap-1.5 transition ${
-            activeTab === 'attendee'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800'
-          }`}
+          className={`flex-1 py-2 px-2.5 rounded-xl font-semibold flex items-center justify-center gap-1.5 transition ${activeTab === 'attendee'
+            ? 'bg-emerald-600 text-white shadow-xs'
+            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
         >
           <UserCheck className="w-4 h-4" />
           <span>কার্ড তথ্য</span>
@@ -69,11 +68,10 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
 
         <button
           onClick={() => setActiveTab('event')}
-          className={`flex-1 py-2 px-2.5 rounded-xl font-semibold flex items-center justify-center gap-1.5 transition ${
-            activeTab === 'event'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800'
-          }`}
+          className={`flex-1 py-2 px-2.5 rounded-xl font-semibold flex items-center justify-center gap-1.5 transition ${activeTab === 'event'
+            ? 'bg-emerald-600 text-white shadow-xs'
+            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
         >
           <Layers className="w-4 h-4" />
           <span>ইভেন্ট ব্যানার</span>
@@ -81,11 +79,10 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
 
         <button
           onClick={() => setActiveTab('labels')}
-          className={`flex-1 py-2 px-2.5 rounded-xl font-semibold flex items-center justify-center gap-1.5 transition ${
-            activeTab === 'labels'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800'
-          }`}
+          className={`flex-1 py-2 px-2.5 rounded-xl font-semibold flex items-center justify-center gap-1.5 transition ${activeTab === 'labels'
+            ? 'bg-emerald-600 text-white shadow-xs'
+            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
         >
           <Type className="w-4 h-4" />
           <span>লেবেল</span>
@@ -93,11 +90,10 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
 
         <button
           onClick={() => setActiveTab('print')}
-          className={`flex-1 py-2 px-2.5 rounded-xl font-semibold flex items-center justify-center gap-1.5 transition ${
-            activeTab === 'print'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800'
-          }`}
+          className={`flex-1 py-2 px-2.5 rounded-xl font-semibold flex items-center justify-center gap-1.5 transition ${activeTab === 'print'
+            ? 'bg-emerald-600 text-white shadow-xs'
+            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
         >
           <Settings2 className="w-4 h-4" />
           <span>প্রিন্ট অপশন</span>
@@ -132,7 +128,7 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
                   <UserCheck className="w-8 h-8 text-emerald-400" />
                 )}
               </div>
-              <div className="flex-1 space-y-1.5">
+              <div className="flex-1 space-y-2">
                 <p className="font-semibold text-slate-200">প্রোফাইল ছবি</p>
                 <div className="flex items-center gap-2">
                   <button
@@ -152,6 +148,15 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
                       <span>রিমুভ</span>
                     </button>
                   )}
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="অথবা ছবির সরাসরি URL / লিংক দিন"
+                    value={selectedAttendee.photoUrl || ''}
+                    onChange={(e) => onUpdateAttendee({ ...selectedAttendee, photoUrl: e.target.value })}
+                    className="w-full px-2.5 py-1 bg-slate-900 border border-slate-700 rounded-lg text-white text-[11px] placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+                  />
                 </div>
                 <input
                   type="file"
@@ -201,11 +206,10 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => onUpdateConfig({ ...config, fontChoice: 'kalpurush' })}
-                  className={`p-2 rounded-lg border text-left transition ${
-                    (!config.fontChoice || config.fontChoice === 'kalpurush')
-                      ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300 font-bold'
-                      : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700'
-                  }`}
+                  className={`p-2 rounded-lg border text-left transition ${(!config.fontChoice || config.fontChoice === 'kalpurush')
+                    ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300 font-bold'
+                    : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700'
+                    }`}
                 >
                   <div className="font-kalpurush text-sm">কালপুরুষ (Kalpurush)</div>
                   <div className="text-[10px] text-slate-400 mt-0.5">সব ফিল্ডে কালপুরুষ ফন্ট</div>
@@ -214,11 +218,10 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => onUpdateConfig({ ...config, fontChoice: 'solaiman' })}
-                  className={`p-2 rounded-lg border text-left transition ${
-                    config.fontChoice === 'solaiman'
-                      ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300 font-bold'
-                      : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700'
-                  }`}
+                  className={`p-2 rounded-lg border text-left transition ${config.fontChoice === 'solaiman'
+                    ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300 font-bold'
+                    : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700'
+                    }`}
                 >
                   <div className="font-solaiman text-sm">সোলাইমানলিপি (SolaimanLipi)</div>
                   <div className="text-[10px] text-slate-400 mt-0.5">সব ফিল্ডে সোলাইমানলিপি ফন্ট</div>
@@ -227,11 +230,10 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => onUpdateConfig({ ...config, fontChoice: 'kalpurush_solaiman' })}
-                  className={`p-2 rounded-lg border text-left transition ${
-                    config.fontChoice === 'kalpurush_solaiman'
-                      ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300 font-bold'
-                      : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700'
-                  }`}
+                  className={`p-2 rounded-lg border text-left transition ${config.fontChoice === 'kalpurush_solaiman'
+                    ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300 font-bold'
+                    : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700'
+                    }`}
                 >
                   <div className="text-xs font-semibold">আইডি কালপুরুষ + তথ্য সোলাইমানলিপি</div>
                   <div className="text-[10px] text-slate-400 mt-0.5">আইডি: Kalpurush • ফিল্ড: SolaimanLipi</div>
@@ -240,11 +242,10 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => onUpdateConfig({ ...config, fontChoice: 'solaiman_kalpurush' })}
-                  className={`p-2 rounded-lg border text-left transition ${
-                    config.fontChoice === 'solaiman_kalpurush'
-                      ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300 font-bold'
-                      : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700'
-                  }`}
+                  className={`p-2 rounded-lg border text-left transition ${config.fontChoice === 'solaiman_kalpurush'
+                    ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300 font-bold'
+                    : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700'
+                    }`}
                 >
                   <div className="text-xs font-semibold">আইডি সোলাইমানলিপি + তথ্য কালপুরুষ</div>
                   <div className="text-[10px] text-slate-400 mt-0.5">আইডি: SolaimanLipi • ফিল্ড: Kalpurush</div>
@@ -535,7 +536,6 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
 
               <div className="p-3 bg-emerald-950/30 border border-emerald-800/40 rounded-xl text-emerald-300 text-[11px] space-y-1">
                 <p className="font-bold flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
                   প্রিন্ট তথ্য:
                 </p>
                 <p>• কাগজ সাইজ: আন্তর্জাতিক স্ট্যান্ডার্ড A4 (২১০ মিমি × ২৯৭ মিমি)</p>

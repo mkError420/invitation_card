@@ -40,11 +40,10 @@ Copy-Item -Force "$projectRoot\backend\database\schema.sql" "$deployDir\schema.s
 # Create production .htaccess for cPanel / InfinityFree / Apache
 Write-Host "5. Creating Apache .htaccess..." -ForegroundColor Cyan
 $htaccessContent = @"
-<IfModule mod_rewrite.c>
+# InfinityFree & Apache Safe .htaccess (No BOM, No Options keyword)
 RewriteEngine On
-RewriteBase /
 
-# API clean routing to PHP endpoints
+# Clean API routing to PHP endpoints
 RewriteRule ^api/attendees/?$ api/attendees.php [L,QSA]
 RewriteRule ^api/config/?$ api/config.php [L,QSA]
 RewriteRule ^api/upload/?$ api/upload.php [L,QSA]
@@ -52,15 +51,17 @@ RewriteRule ^api/status/?$ api/status.php [L,QSA]
 RewriteRule ^api/?$ api/index.php [L,QSA]
 
 # Allow direct access to existing files and folders (JS, CSS, images, fonts, PHP scripts, uploads)
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
 
 # React SPA Fallback to index.html
-RewriteRule ^(.*)$ index.html [L,QSA]
-</IfModule>
+RewriteRule ^ index.html [L]
 "@
 
-Set-Content -Path "$deployDir\.htaccess" -Value $htaccessContent -Encoding UTF8
+# Write UTF-8 WITHOUT BOM (Byte Order Mark) so Apache/InfinityFree does not crash
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText("$deployDir\.htaccess", $htaccessContent.Trim() + "`n", $utf8NoBom)
 
 # Create ZIP archive
 Write-Host "6. Creating cpanel_deploy.zip..." -ForegroundColor Cyan
