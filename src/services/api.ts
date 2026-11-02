@@ -109,11 +109,11 @@ export const api = {
   },
 
   /**
-   * Update attendee in database
+   * Update attendee in database (uses POST with action=update for maximum compatibility with InfinityFree & Apache)
    */
   async updateAttendee(attendee: Attendee): Promise<Attendee> {
-    const res = await fetch(`${API_BASE}/attendees.php?id=${encodeURIComponent(attendee.id)}`, {
-      method: 'PUT',
+    const res = await fetch(`${API_BASE}/attendees.php?action=update&id=${encodeURIComponent(attendee.id)}`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(attendee),
     });
@@ -123,11 +123,13 @@ export const api = {
   },
 
   /**
-   * Delete attendee from database
+   * Delete attendee from database (uses POST with action=delete)
    */
   async deleteAttendee(id: string): Promise<boolean> {
-    const res = await fetch(`${API_BASE}/attendees.php?id=${encodeURIComponent(id)}`, {
-      method: 'DELETE',
+    const res = await fetch(`${API_BASE}/attendees.php?action=delete&id=${encodeURIComponent(id)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
     });
     const json = await res.json();
     return !!json.success;

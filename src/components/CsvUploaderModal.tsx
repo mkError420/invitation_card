@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Upload, FileSpreadsheet, Download, X, CheckCircle, AlertCircle } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Upload, FileSpreadsheet, Download, X, CheckCircle, AlertCircle, Images, Camera } from 'lucide-react';
 import { Attendee } from '../types';
-import { parseAttendeesFromCsv, downloadSampleCsv } from '../utils/csvHelper';
+import { parseAttendeesFromCsv, downloadSampleCsv, matchPhotosToAttendees } from '../utils/csvHelper';
 
 interface CsvUploaderModalProps {
   isOpen: boolean;
@@ -18,7 +18,9 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({
   const [parsedData, setParsedData] = useState<Attendee[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photoMatchMessage, setPhotoMatchMessage] = useState<string | null>(null);
   const [importMode, setImportMode] = useState<'replace' | 'append'>('replace');
+  const photosInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
@@ -40,6 +42,7 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({
   const processFile = async (f: File) => {
     setFile(f);
     setError(null);
+    setPhotoMatchMessage(null);
     setIsProcessing(true);
     try {
       const attendees = await parseAttendeesFromCsv(f);
@@ -54,6 +57,38 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({
       setParsedData([]);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handlePhotosSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || parsedData.length === 0) return;
+
+    setIsProcessing(true);
+    try {
+      const fileList = Array.from(files);
+      const { updatedAttendees, matchedCount } = await matchPhotosToAttendees(fileList, parsedData);
+      setParsedData(updatedAttendees);
+      setPhotoMatchMessage(`সফলভাবে ${matchedCount} জন সদস্যের ছবি যুক্ত করা হয়েছে!`);
+    } catch (err: any) {
+      setError('ছবি প্রসেস করতে সমস্যা হয়েছে: ' + (err?.message || ''));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRowPhotoChange = (idx: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (selected) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          const newData = [...parsedData];
+          newData[idx] = { ...newData[idx], photoUrl: reader.result };
+          setParsedData(newData);
+        }
+      };
+      reader.readAsDataURL(selected);
     }
   };
 
@@ -152,8 +187,46 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({
 
           {/* Parsed Preview Table */}
           {parsedData.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-slate-300">
+            <div className="space-y-3">
+              {/* Optional Bulk Photos Upload Helper */}
+              <div className="bg-slate-850 border border-slate-700/80 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-indigo-500/20 text-indigo-400 rounded-lg shrink-0">
+                    <Images className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-200">কম্পিউটার থেকে ছবি ফাইল যুক্ত করুন (ঐচ্ছিক)</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      ছবিসমূহ একসাথে নির্বাচন করুন (যেমন: 1001.jpg, 1002.png বা নামের ফাইল)। রোল/নাম অনুযায়ী স্বয়ংক্রিয়ভাবে বসে যাবে!
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => photosInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition shrink-0"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>ছবি নির্বাচন করুন</span>
+                </button>
+                <input
+                  ref={photosInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handlePhotosSelected}
+                />
+              </div>
+
+              {photoMatchMessage && (
+                <div className="flex items-center gap-2 p-2.5 bg-emerald-950/60 border border-emerald-700/80 text-emerald-300 rounded-lg text-xs">
+                  <CheckCircle className="w-4 h-4 shrink-0 text-emerald-400" />
+                  <span>{photoMatchMessage}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-xs text-slate-300 pt-1">
                 <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
                   <CheckCircle className="w-4 h-4" />
                   সফলভাবে {parsedData.length} জন সদস্য পাওয়া গেছে
@@ -183,11 +256,11 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({
               </div>
 
               {/* Table Preview */}
-              <div className="max-h-52 overflow-y-auto border border-slate-700 rounded-lg bg-slate-950/60 text-xs">
+              <div className="max-h-56 overflow-y-auto border border-slate-700 rounded-lg bg-slate-950/60 text-xs">
                 <table className="w-full text-left">
                   <thead className="bg-slate-800 text-slate-300 sticky top-0">
                     <tr>
-                      <th className="p-2 w-12 text-center">Image</th>
+                      <th className="p-2 w-14 text-center">ছবি</th>
                       <th className="p-2">নিবন্ধন নং</th>
                       <th className="p-2">নাম</th>
                       <th className="p-2">স্কুল</th>
@@ -196,21 +269,37 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800 text-slate-400">
-                    {parsedData.slice(0, 10).map((row, idx) => (
+                    {parsedData.slice(0, 15).map((row, idx) => (
                       <tr key={idx} className="hover:bg-slate-800/40">
                         <td className="p-2 text-center">
-                          {row.photoUrl ? (
-                            <img
-                              src={row.photoUrl}
-                              alt={row.name}
-                              className="w-7 h-7 rounded-full object-cover mx-auto border border-emerald-500/60 bg-emerald-950/40"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).style.display = 'none';
-                              }}
+                          <label
+                            className="relative inline-block w-8 h-8 rounded-full overflow-hidden border border-emerald-500/60 cursor-pointer group bg-slate-800"
+                            title="ছবি পরিবর্তন বা যোগ করতে ক্লিক করুন"
+                          >
+                            {row.photoUrl ? (
+                              <img
+                                src={row.photoUrl}
+                                alt={row.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-slate-400 text-[9px] bg-slate-850">
+                                ছবি দিন
+                              </div>
+                            )}
+                            <span className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                              <Camera className="w-3.5 h-3.5 text-white" />
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleRowPhotoChange(idx, e)}
                             />
-                          ) : (
-                            <span className="text-[10px] text-slate-500">ডিফল্ট</span>
-                          )}
+                          </label>
                         </td>
                         <td className="p-2 font-mono text-emerald-400 font-semibold">{row.regNo}</td>
                         <td className="p-2 text-slate-200 font-medium">{row.name}</td>
@@ -221,9 +310,9 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({
                     ))}
                   </tbody>
                 </table>
-                {parsedData.length > 10 && (
+                {parsedData.length > 15 && (
                   <div className="p-2 text-center text-slate-500 text-[11px] bg-slate-900/80">
-                    এবং আরো {parsedData.length - 10} টি রেকর্ড...
+                    এবং আরো {parsedData.length - 15} টি রেকর্ড...
                   </div>
                 )}
               </div>

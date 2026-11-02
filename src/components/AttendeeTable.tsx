@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { UserPlus, Trash2, Search, Eye, Image, RefreshCw } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { UserPlus, Trash2, Search, Eye, Image, RefreshCw, Images, CheckCircle } from 'lucide-react';
 import { Attendee } from '../types';
+import { matchPhotosToAttendees } from '../utils/csvHelper';
 
 interface AttendeeTableProps {
   attendees: Attendee[];
@@ -25,6 +26,30 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [bulkPhotoMsg, setBulkPhotoMsg] = useState<string | null>(null);
+  const bulkPhotoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBulkPhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    try {
+      const fileList = Array.from(files);
+      const { updatedAttendees, matchedCount } = await matchPhotosToAttendees(fileList, attendees);
+
+      for (const att of updatedAttendees) {
+        const original = attendees.find((a) => a.id === att.id);
+        if (original && att.photoUrl && att.photoUrl !== original.photoUrl) {
+          onPhotoUpload(att.id, att.photoUrl);
+        }
+      }
+
+      setBulkPhotoMsg(`সফলভাবে ${matchedCount} জন সদস্যের ছবি যুক্ত ও সংরক্ষণ করা হয়েছে!`);
+      setTimeout(() => setBulkPhotoMsg(null), 6000);
+    } catch (err: any) {
+      alert('ছবি আপলোডে সমস্যা হয়েছে: ' + (err?.message || ''));
+    }
+  };
   const [newAttendee, setNewAttendee] = useState({
     regNo: '',
     name: '',
@@ -103,6 +128,23 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
           </button>
 
           <button
+            onClick={() => bulkPhotoInputRef.current?.click()}
+            title="কম্পিউটার থেকে সদস্যদের ছবিসমূহ একসাথে নির্বাচন করুন (যেমন: 1001.jpg, 1002.png)"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition shadow-xs"
+          >
+            <Images className="w-4 h-4" />
+            <span>বাল্ক ছবি আপলোড</span>
+          </button>
+          <input
+            ref={bulkPhotoInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleBulkPhotos}
+          />
+
+          <button
             onClick={onLoadSampleData}
             title="৮ জনের নমুনা ডেটা লোড করুন"
             className="inline-flex items-center justify-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs transition border border-slate-700"
@@ -112,6 +154,13 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
           </button>
         </div>
       </div>
+
+      {bulkPhotoMsg && (
+        <div className="mb-3 p-2.5 bg-emerald-950/60 border border-emerald-700 text-emerald-300 rounded-xl text-xs flex items-center gap-2">
+          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{bulkPhotoMsg}</span>
+        </div>
+      )}
 
       {/* Quick Add Form Modal/Drawer */}
       {showAddForm && (

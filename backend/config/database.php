@@ -65,6 +65,8 @@ class Database {
 
                 if (self::tablesNeedInitMysql(self::$pdo)) {
                     self::initMysqlTables(self::$pdo);
+                } else {
+                    self::ensureMysqlColumns(self::$pdo);
                 }
             } else {
                 // SQLite
@@ -91,6 +93,8 @@ class Database {
 
                 if ($isNewDb || self::tablesNeedInit(self::$pdo)) {
                     self::initSqliteTables(self::$pdo);
+                } else {
+                    self::ensureSqliteColumns(self::$pdo);
                 }
             }
 
@@ -129,6 +133,28 @@ class Database {
             return $stmt->fetchColumn() === false;
         } catch (Exception $e) {
             return true;
+        }
+    }
+
+    public static function ensureMysqlColumns(PDO $pdo): void {
+        try {
+            $stmt = $pdo->query("SHOW COLUMNS FROM attendees LIKE 'photo_url'");
+            if ($stmt->fetchColumn() === false) {
+                $pdo->exec("ALTER TABLE attendees ADD COLUMN photo_url LONGTEXT DEFAULT NULL AFTER phone");
+            }
+        } catch (Exception $e) {
+            // ignore
+        }
+    }
+
+    public static function ensureSqliteColumns(PDO $pdo): void {
+        try {
+            $cols = $pdo->query("PRAGMA table_info(attendees)")->fetchAll(PDO::FETCH_COLUMN, 1);
+            if (!in_array('photo_url', $cols)) {
+                $pdo->exec("ALTER TABLE attendees ADD COLUMN photo_url TEXT DEFAULT ''");
+            }
+        } catch (Exception $e) {
+            // ignore
         }
     }
 

@@ -1,10 +1,10 @@
 import Papa from 'papaparse';
 import { Attendee } from '../types';
-import { toBengaliNumber } from './bengaliNumerals';
+import { toBengaliNumber, toEnglishNumber } from './bengaliNumerals';
 
 /**
  * Normalizes an image URL, trimming quotes/whitespace and converting
- * common cloud storage links (like Google Drive or Dropbox) to direct image URLs.
+ * common cloud storage links (like Google Drive, Dropbox) to direct image URLs.
  */
 export function normalizeImageUrl(url: string | undefined | null): string {
   if (!url) return '';
@@ -15,11 +15,29 @@ export function normalizeImageUrl(url: string | undefined | null): string {
 
   if (!trimmed) return '';
 
-  // Google Drive share link transformation
-  // Matches https://drive.google.com/file/d/FILE_ID/view... or https://drive.google.com/open?id=FILE_ID
-  const driveMatch = trimmed.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/);
+  // If already a Data URL (e.g. data:image/png;base64,...)
+  if (trimmed.startsWith('data:image/')) {
+    return trimmed;
+  }
+
+  // Google Drive share link transformation:
+  // Matches:
+  // - drive.google.com/file/d/FILE_ID/view...
+  // - drive.google.com/open?id=FILE_ID
+  // - drive.google.com/uc?id=FILE_ID
+  // - drive.google.com/uc?export=view&id=FILE_ID
+  // - docs.google.com/uc?id=FILE_ID
+  const driveMatch = trimmed.match(
+    /(?:drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=)|docs\.google\.com\/(?:uc\?id=|file\/d\/))([a-zA-Z0-9_-]+)/
+  );
   if (driveMatch && driveMatch[1]) {
-    return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+    // Google's thumbnail API generates a high-resolution, fast-loading, public direct image
+    return `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w1000`;
+  }
+
+  // If user pasted raw Google Drive ID (28-45 alphanumeric chars with _ -)
+  if (/^[a-zA-Z0-9_-]{28,45}$/.test(trimmed)) {
+    return `https://drive.google.com/thumbnail?id=${trimmed}&sz=w1000`;
   }
 
   // Dropbox link transformation: www.dropbox.com/... -> dl.dropboxusercontent.com/...
@@ -28,6 +46,113 @@ export function normalizeImageUrl(url: string | undefined | null): string {
   }
 
   return trimmed;
+}
+
+export const PHOTO_HEADER_KEYS = [
+  'image',
+  'images',
+  'imageurl',
+  'image_url',
+  'imagelink',
+  'image_link',
+  'photo',
+  'photos',
+  'photourl',
+  'photo_url',
+  'photolink',
+  'photo_link',
+  'picture',
+  'pictures',
+  'pictureurl',
+  'picturelink',
+  'pic',
+  'pics',
+  'img',
+  'imgs',
+  'avatar',
+  'profile',
+  'ছবি',
+  'ছবির লিংক',
+  'ছবির লিঙ্ক',
+  'ছবি লিংক',
+  'ছবি লিঙ্ক',
+  'ছবি_লিংক',
+  'ছবি_লিঙ্ক',
+  'ছবির_লিংক',
+  'ছবির_লিঙ্ক',
+  'সদস্যের ছবি',
+  'প্রোফাইল ছবি',
+  'পাসপোর্ট ছবি',
+  'ইমেজ',
+  'ইমেজ লিংক',
+  'ইমেজ লিঙ্ক',
+  'ফটো',
+  'ফটো লিংক',
+  'ফটো লিঙ্ক',
+  'ড্রাইভ',
+  'ড্রাইভ লিংক',
+  'ড্রাইভ লিঙ্ক',
+  'গুগল ড্রাইভ',
+  'drive',
+  'drive link',
+  'google drive',
+  'google drive link',
+  'url',
+  'link',
+  'file',
+  'files',
+];
+
+export function findPhotoInRow(row: Record<string, string>): string {
+  // 1. Try finding by matching known column headers
+  const fromHeader = findValue(row, PHOTO_HEADER_KEYS);
+  if (fromHeader && fromHeader.trim() !== '') {
+    return fromHeader.trim();
+  }
+
+  // 2. Fallback: inspect values across all columns for image/drive URLs
+  for (const key of Object.keys(row)) {
+    const val = String(row[key] || '').trim();
+    if (!val) continue;
+
+    // Check for Google Drive / Dropbox / Cloudinary / Imgur
+    if (
+      val.includes('drive.google.com') ||
+      val.includes('dropbox.com') ||
+      val.includes('imgur.com') ||
+      val.includes('cloudinary.com')
+    ) {
+      return val;
+    }
+
+    // Check for direct web image URL
+    if (/^https?:\/\/.+\.(jpg|jpeg|png|webp|gif|svg)(\?.*)?$/i.test(val)) {
+      return val;
+    }
+
+    // Check for base64 image data URL
+    if (val.startsWith('data:image/')) {
+      return val;
+    }
+
+    // Check for local image filename (e.g. 1001.jpg, photo.png)
+    if (/^[a-zA-Z0-9_\-\u0980-\u09FF\s]+\.(jpg|jpeg|png|webp|gif)$/i.test(val)) {
+      return val;
+    }
+
+    // Check for any general http/https link that isn't a known textual column
+    const cleanKey = key.trim().toLowerCase();
+    if (
+      /^https?:\/\//i.test(val) &&
+      !cleanKey.includes('school') &&
+      !cleanKey.includes('college') &&
+      !cleanKey.includes('district')
+    ) {
+      return val;
+    }
+  }
+
+  return '';
 }
 
 export function parseAttendeesFromCsv(file: File): Promise<Attendee[]> {
@@ -64,25 +189,8 @@ export function parseAttendeesFromCsv(file: File): Promise<Attendee[]> {
             findValue(row, ['phone', 'mobile', 'cell', 'contact', 'মোবাইল', 'ফোন', 'নম্বর']) ||
             '০১৭XXXXXXXX';
 
-          // Extract Image / Photo URL from column
-          const rawPhoto = findValue(row, [
-            'image',
-            'imageurl',
-            'photo',
-            'photourl',
-            'picture',
-            'pic',
-            'img',
-            'avatar',
-            'profile',
-            'ছবি',
-            'ছবি লিংক',
-            'ছবিলিংক',
-            'ছবির লিংক',
-            'ছবিরলিংক',
-            'ইমেজ',
-            'ফটো',
-          ]);
+          // Extract Image / Photo URL from column with intelligent auto-detection
+          const rawPhoto = findPhotoInRow(row);
           const photoUrl = normalizeImageUrl(rawPhoto);
 
           return {
@@ -138,6 +246,76 @@ function findValue(row: Record<string, string>, possibleKeys: string[]): string 
   }
 
   return undefined;
+}
+
+/**
+ * Matches an array of local image files to a list of attendees by filename,
+ * registration number, attendee name, or attendee.photoUrl filename.
+ */
+export async function matchPhotosToAttendees(
+  imageFiles: File[],
+  attendees: Attendee[]
+): Promise<{ updatedAttendees: Attendee[]; matchedCount: number }> {
+  const fileDataPromises = imageFiles.map((file) => {
+    return new Promise<{ file: File; baseName: string; dataUrl: string }>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dotIndex = file.name.lastIndexOf('.');
+        const baseName = dotIndex !== -1 ? file.name.substring(0, dotIndex).trim() : file.name.trim();
+        resolve({
+          file,
+          baseName,
+          dataUrl: String(reader.result || ''),
+        });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  });
+
+  const loadedFiles = await Promise.all(fileDataPromises);
+  let matchedCount = 0;
+
+  const updatedAttendees = attendees.map((att) => {
+    const regBn = att.regNo.trim();
+    const regEn = toEnglishNumber(regBn);
+    const attName = att.name.trim().toLowerCase();
+    const existingPhoto = (att.photoUrl || '').trim();
+
+    // Look for matching loaded file
+    const matched = loadedFiles.find((f) => {
+      const fBase = f.baseName.trim();
+      const fBaseEn = toEnglishNumber(fBase);
+      const fBaseBn = toBengaliNumber(fBase);
+      const fNameLower = fBase.toLowerCase();
+
+      // 1. Matches registration number (e.g. "1001" or "১০০১")
+      if (regEn && (fBase === regEn || fBaseEn === regEn || fBaseBn === regBn || fBase === regBn)) {
+        return true;
+      }
+
+      // 2. Matches attendee name (e.g. "নাম এক")
+      if (attName && (fNameLower === attName || attName.includes(fNameLower))) {
+        return true;
+      }
+
+      // 3. Matches existing photo filename from CSV (e.g. CSV has "photo_1001.jpg" and file is "photo_1001.jpg")
+      if (existingPhoto && (existingPhoto.includes(f.file.name) || existingPhoto.includes(fBase))) {
+        return true;
+      }
+
+      return false;
+    });
+
+    if (matched) {
+      matchedCount++;
+      return { ...att, photoUrl: matched.dataUrl };
+    }
+
+    return att;
+  });
+
+  return { updatedAttendees, matchedCount };
 }
 
 export function generateSampleCsvContent(): string {
