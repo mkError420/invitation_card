@@ -205,35 +205,6 @@ class Database {
             );
         ");
 
-        // Seed initial attendees if empty
-        $stmt = $pdo->query("SELECT COUNT(*) FROM attendees");
-        if ((int)$stmt->fetchColumn() === 0) {
-            $insertAttendee = $pdo->prepare("
-                INSERT INTO attendees (id, reg_no, name, school, district, guests, phone, photo_url)
-                VALUES (:id, :reg_no, :name, :school, :district, :guests, :phone, :photo_url)
-            ");
-
-            $defaults = [
-                ['att-1', '০০০১', 'মো: নাজমুল আহসান', 'রংপুর জেলা স্কুল', 'রংপুর সদর, রংপুর', '২', '০১৭XXXXXXXX', ''],
-                ['att-2', '০০০২', 'প্রকৌ. তৌহিদুল ইসলাম', 'রংপুর জিলা স্কুল', 'মিঠাপুকুর, রংপুর', '১', '০১৮১২৩৪৫৬৭৮', ''],
-                ['att-3', '০০০৩', 'ড. মাহমুদুল হাসান', 'রংপুর সরকারি কলেজ', 'পীরগঞ্জ, রংপুর', '৩', '০১৯৮৭৬৫৪৩২১', ''],
-                ['att-4', '০০০৪', 'আব্দুর রহিম সরকার', 'কাউনিয়া পাইলট উচ্চ বিদ্যালয়', 'কাউনিয়া, রংপুর', '২', '০১৬১১২২৩৩৪৪', ''],
-            ];
-
-            foreach ($defaults as $d) {
-                $insertAttendee->execute([
-                    ':id' => $d[0],
-                    ':reg_no' => $d[1],
-                    ':name' => $d[2],
-                    ':school' => $d[3],
-                    ':district' => $d[4],
-                    ':guests' => $d[5],
-                    ':phone' => $d[6],
-                    ':photo_url' => $d[7],
-                ]);
-            }
-        }
-
         // Seed default config if empty
         $stmt = $pdo->query("SELECT COUNT(*) FROM event_config");
         if ((int)$stmt->fetchColumn() === 0) {

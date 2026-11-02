@@ -53,43 +53,13 @@ export const DEFAULT_EVENT_CONFIG: EventConfig = {
 
 export const INITIAL_ATTENDEES: Attendee[] = [
   {
-    id: "att-1",
+    id: "att-blank",
     regNo: "০০০১",
-    name: "মো: নাজমুল আহসান",
+    name: "",
     school: "রংপুর জেলা স্কুল",
-    district: "রংপুর সদর, রংপুর",
-    guests: "২",
-    phone: "০১৭XXXXXXXX",
-    photoUrl: "", // uses default reference image face or fallback
-  },
-  {
-    id: "att-2",
-    regNo: "০০০২",
-    name: "প্রকৌ. তৌহিদুল ইসলাম",
-    school: "রংপুর জিলা স্কুল",
-    district: "মিঠাপুকুর, রংপুর",
+    district: "রংপুর",
     guests: "১",
-    phone: "০১৮১২৩৪৫৬৭৮",
-    photoUrl: "",
-  },
-  {
-    id: "att-3",
-    regNo: "০০০৩",
-    name: "ড. মাহমুদুল হাসান",
-    school: "রংপুর সরকারি কলেজ",
-    district: "পীরগঞ্জ, রংপুর",
-    guests: "৩",
-    phone: "০১৯৮৭৬৫৪৩২১",
-    photoUrl: "",
-  },
-  {
-    id: "att-4",
-    regNo: "০০০৪",
-    name: "আব্দুর রহিম সরকার",
-    school: "কাউনিয়া পাইলট উচ্চ বিদ্যালয়",
-    district: "কাউনিয়া, রংপুর",
-    guests: "২",
-    phone: "০১৬১১২২৩৩৪৪",
+    phone: "",
     photoUrl: "",
   },
 ];

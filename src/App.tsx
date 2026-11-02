@@ -62,6 +62,19 @@ export default function App() {
             if (remoteAttendees && remoteAttendees.length > 0) {
               setAttendees(remoteAttendees);
               setSelectedAttendeeId(remoteAttendees[0].id);
+            } else if (remoteAttendees && remoteAttendees.length === 0) {
+              const blankAttendee: Attendee = {
+                id: `att-${Date.now()}`,
+                regNo: '০০০১',
+                name: '',
+                school: 'রংপুর জেলা স্কুল',
+                district: 'রংপুর',
+                guests: '১',
+                phone: '',
+                photoUrl: '',
+              };
+              setAttendees([blankAttendee]);
+              setSelectedAttendeeId(blankAttendee.id);
             }
             if (remoteConfig && remoteConfig.mainTitle) {
               setConfig(remoteConfig);
@@ -632,7 +645,7 @@ export default function App() {
             }`}
           >
             <Users className="w-4 h-4" />
-            <span>সদস্য ডাটাবেজ ({attendees.length} জন)</span>
+            <span>সদস্য ডাটাবেজ ({validSavedAttendees.length} জন)</span>
           </button>
         </div>
       </header>
@@ -749,7 +762,7 @@ export default function App() {
                     A4 সাইজ পেজ লেআউট (প্রতি পাতায় ৪টি আইডি কার্ড)
                   </h3>
                   <p className="text-xs text-slate-400">
-                    মোট {attendees.length} জন সদস্যের জন্য {a4Pages.length} টি A4 পাতা তৈরি হয়েছে
+                    মোট {validSavedAttendees.length} জন সদস্যের জন্য {a4Pages.length} টি A4 পাতা তৈরি হয়েছে
                   </p>
                 </div>
               </div>

@@ -44,15 +44,6 @@ CREATE TABLE IF NOT EXISTS `event_config` (
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Seed Default Attendees (Insert Ignore or Update on duplicate)
-INSERT INTO `attendees` (`id`, `reg_no`, `name`, `school`, `district`, `guests`, `phone`, `photo_url`)
-VALUES
-('att-1', '০০০১', 'মো: নাজমুল আহসান', 'রংপুর জেলা স্কুল', 'রংপুর সদর, রংপুর', '২', '০১৭XXXXXXXX', ''),
-('att-2', '০০০২', 'প্রকৌ. তৌহিদুল ইসলাম', 'রংপুর জিলা স্কুল', 'মিঠাপুকুর, রংপুর', '১', '০১৮১২৩৪৫৬৭৮', ''),
-('att-3', '০০০৩', 'ড. মাহমুদুল হাসান', 'রংপুর সরকারি কলেজ', 'পীরগঞ্জ, রংপুর', '৩', '০১৯৮৭৬৫৪৩২১', ''),
-('att-4', '০০০৪', 'আব্দুর রহিম সরকার', 'কাউনিয়া পাইলট উচ্চ বিদ্যালয়', 'কাউনিয়া, রংপুর', '২', '০১৬১১২২৩৩৪৪', '')
-ON DUPLICATE KEY UPDATE `name`=VALUES(`name`);
-
 -- Seed Default Event Config
 INSERT INTO `event_config` (
     `id`, `header_arc_title`, `main_title`, `slogan1`, `slogan2`,
