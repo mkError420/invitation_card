@@ -63,6 +63,18 @@ class AttendeeModel {
     }
 
     /**
+     * Upsert / Save attendee (create if not found, update if exists)
+     */
+    public function save(array $data): array {
+        $id = !empty($data['id']) ? (string)$data['id'] : null;
+        if ($id && $this->getById($id)) {
+            $updated = $this->update($id, $data);
+            if ($updated) return $updated;
+        }
+        return $this->create($data);
+    }
+
+    /**
      * Create a new attendee
      */
     public function create(array $data): array {

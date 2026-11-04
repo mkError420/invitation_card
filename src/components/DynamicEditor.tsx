@@ -43,7 +43,14 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleSaveAttendee = async () => {
-    if (!selectedAttendee.name.trim()) {
+    // If attendee name is empty but config.labelName has a name (from previous accidental input in labels tab), auto-populate!
+    const effectiveAttendee = { ...selectedAttendee };
+    if (!effectiveAttendee.name.trim() && config.labelName && config.labelName.trim()) {
+      effectiveAttendee.name = config.labelName.trim();
+      onUpdateAttendee(effectiveAttendee);
+    }
+
+    if (!effectiveAttendee.name.trim()) {
       setValidationError('অনুগ্রহ করে সদস্যের নাম পূরণ করুন।');
       return;
     }
@@ -51,12 +58,12 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
     setIsSaving(true);
     try {
       if (onSaveAttendee) {
-        await onSaveAttendee(selectedAttendee);
+        await onSaveAttendee(effectiveAttendee);
       }
-      setSaveSuccessMsg(`'${selectedAttendee.name}' সফলভাবে ডাটাবেজে সংরক্ষিত হয়েছে এবং ফর্ম ক্লিয়ার করা হয়েছে।`);
+      setSaveSuccessMsg(`'${effectiveAttendee.name}' সফলভাবে ডাটাবেজে সংরক্ষণ করা হয়েছে এবং নতুন সদস্যের জন্য কার্ড ক্লিয়ার হয়েছে।`);
       setTimeout(() => setSaveSuccessMsg(null), 6000);
     } catch (err: any) {
-      setValidationError('সংরক্ষণে ত্রুটি হয়েছে: ' + (err?.message || ''));
+      setValidationError('সংরক্ষণে ত্রুটি হয়েছে: ' + (err?.message || 'ডাটাবেজে সংরক্ষণ করা যায়নি'));
     } finally {
       setIsSaving(false);
     }
@@ -229,7 +236,7 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">
-                  {config.labelReg} (নম্বর)
+                  নিবন্ধন নম্বর (আইডি)
                 </label>
                 <input
                   type="text"
@@ -244,7 +251,7 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
 
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">
-                  {config.labelName}
+                  সদস্যের পুরো নাম <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -262,7 +269,7 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">
-                  {config.labelSchool}
+                  স্কুল / প্রতিষ্ঠানের নাম
                 </label>
                 <input
                   type="text"
@@ -277,7 +284,7 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
 
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">
-                  {config.labelDistrict}
+                  জেলা / বর্তমান অবস্থান
                 </label>
                 <input
                   type="text"
@@ -286,7 +293,7 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
                     onUpdateAttendee({ ...selectedAttendee, district: e.target.value })
                   }
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:border-emerald-500 focus:outline-none"
-                  placeholder="রংপুর সদর, রংপুর"
+                  placeholder="রংপুর"
                 />
               </div>
             </div>
@@ -295,7 +302,7 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">
-                  {config.labelGuests}
+                  অতিথির সংখ্যা
                 </label>
                 <input
                   type="text"
@@ -304,13 +311,13 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
                     onUpdateAttendee({ ...selectedAttendee, guests: e.target.value })
                   }
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:border-emerald-500 focus:outline-none"
-                  placeholder="২"
+                  placeholder="১"
                 />
               </div>
 
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">
-                  {config.labelPhone}
+                  মোবাইল নম্বর
                 </label>
                 <input
                   type="text"
@@ -442,9 +449,28 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
         {/* Tab 3: Field Labels */}
         {activeTab === 'labels' && (
           <div className="space-y-4">
-            <div className="border-b border-slate-800 pb-2">
-              <h4 className="font-bold text-sm text-white">ফিল্ডের লেবেল বা উপাধি কাস্টমাইজেশন</h4>
-              <p className="text-slate-400 text-[11px]">প্রয়োজনে 'স্কুল' এর জায়গায় 'কলেজ', বা 'অতিথি' এর জায়গায় 'সদস্য সংখ্যা' করতে পারবেন</p>
+            <div className="border-b border-slate-800 pb-2 flex items-center justify-between">
+              <div>
+                <h4 className="font-bold text-sm text-white">কার্ডের টেক্সট প্রিফিক্স (লেবেল সেটিংস)</h4>
+                <p className="text-slate-400 text-[11px]">কার্ডের লেখার পূর্বে কোনো নির্দিষ্ট শব্দ (যেমন 'অতিথিঃ ') প্রদর্শনের জন্য ব্যবহার করুন। সদস্যের নিজস্ব তথ্য এখানে লিখবেন না।</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateConfig({
+                    ...config,
+                    labelReg: 'নিবন্ধন নং',
+                    labelName: '',
+                    labelSchool: '',
+                    labelDistrict: '',
+                    labelGuests: 'অতিথিঃ ',
+                    labelPhone: '',
+                  });
+                }}
+                className="px-2.5 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg border border-slate-700 transition shrink-0"
+              >
+                ডিফল্ট রিসেট
+              </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -456,67 +482,73 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
                   onChange={(e) =>
                     onUpdateConfig({ ...config, labelReg: e.target.value })
                   }
-                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs"
+                  placeholder="ডিফল্ট: নিবন্ধন নং"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">নামের লেবেল</label>
+                <label className="block text-slate-400 mb-1">নামের প্রিফিক্স (সাধারণত খালি)</label>
                 <input
                   type="text"
                   value={config.labelName}
                   onChange={(e) =>
                     onUpdateConfig({ ...config, labelName: e.target.value })
                   }
-                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs"
+                  placeholder="ডিফল্ট খালি থাকবে"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">প্রতিষ্ঠানের লেবেল</label>
+                <label className="block text-slate-400 mb-1">প্রতিষ্ঠানের প্রিফিক্স (সাধারণত খালি)</label>
                 <input
                   type="text"
                   value={config.labelSchool}
                   onChange={(e) =>
                     onUpdateConfig({ ...config, labelSchool: e.target.value })
                   }
-                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs"
+                  placeholder="ডিফল্ট খালি থাকবে"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">অবস্থানের লেবেল</label>
+                <label className="block text-slate-400 mb-1">অবস্থানের প্রিফিক্স (সাধারণত খালি)</label>
                 <input
                   type="text"
                   value={config.labelDistrict}
                   onChange={(e) =>
                     onUpdateConfig({ ...config, labelDistrict: e.target.value })
                   }
-                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs"
+                  placeholder="ডিফল্ট খালি থাকবে"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">অতিথির লেবেল</label>
+                <label className="block text-slate-400 mb-1">অতিথির প্রিফিক্স</label>
                 <input
                   type="text"
                   value={config.labelGuests}
                   onChange={(e) =>
                     onUpdateConfig({ ...config, labelGuests: e.target.value })
                   }
-                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs"
+                  placeholder="ডিফল্ট: অতিথিঃ "
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">মোবাইলের লেবেল</label>
+                <label className="block text-slate-400 mb-1">মোবাইলের প্রিফিক্স (সাধারণত খালি)</label>
                 <input
                   type="text"
                   value={config.labelPhone}
                   onChange={(e) =>
                     onUpdateConfig({ ...config, labelPhone: e.target.value })
                   }
-                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs"
+                  placeholder="ডিফল্ট খালি থাকবে"
                 />
               </div>
             </div>

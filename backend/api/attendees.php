@@ -42,6 +42,13 @@ try {
             // Check if action specified in body or query
             $act = $action ?: ($input['action'] ?? null);
 
+            if ($act === 'save' || $act === 'upsert') {
+                $saved = $model->save($input);
+                http_response_code(200);
+                echo json_encode(['success' => true, 'data' => $saved], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
             if ($act === 'batch' || $act === 'import') {
                 $items = $input['attendees'] ?? [];
                 $mode = ($input['mode'] ?? 'append') === 'replace' ? 'replace' : 'append';

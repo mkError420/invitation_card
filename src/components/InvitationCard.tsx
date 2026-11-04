@@ -288,6 +288,14 @@ interface FieldTextRowProps {
 }
 
 const FieldTextRow: React.FC<FieldTextRowProps> = ({ top, height, label, value, fontFamily }) => {
+  const cleanLabel = (label || '').trim();
+  const cleanValue = (value || '').trim();
+  // Prevent duplicate text (e.g. if label and value are identical, or value already starts with label)
+  const shouldShowLabel =
+    cleanLabel !== '' &&
+    cleanLabel !== cleanValue &&
+    !cleanValue.toLowerCase().startsWith(cleanLabel.toLowerCase());
+
   return (
     <div
       className="absolute z-20 flex items-center px-2 min-w-0"
@@ -307,10 +315,10 @@ const FieldTextRow: React.FC<FieldTextRowProps> = ({ top, height, label, value, 
           fontSynthesis: 'weight',
         }}
       >
-        {label && label.trim() !== '' ? (
-          <span className="text-[#053d21] mr-1 font-bold">{label}</span>
+        {shouldShowLabel ? (
+          <span className="text-[#053d21] mr-1 font-bold">{cleanLabel}</span>
         ) : null}
-        <span className="text-[#051422]">{value}</span>
+        <span className="text-[#051422]">{cleanValue}</span>
       </span>
     </div>
   );

@@ -9,6 +9,9 @@ const getBaseUrl = (): string => {
   return '/api';
 };
 
+const isLocalhost = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
 const API_BASE = getBaseUrl();
 
 export interface BackendStatus {
@@ -91,6 +94,49 @@ export const api = {
       const res = await fetch(fallbackUrl);
       const json = await res.json();
       return json.data || [];
+    }
+  },
+
+  /**
+   * Save attendee (upsert: create or update) in database
+   */
+  async saveAttendee(attendee: Attendee): Promise<Attendee> {
+    try {
+      const res = await fetch(`${API_BASE}/attendees.php?action=save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(attendee),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        // Fallback to update or create
+        try {
+          return await this.updateAttendee(attendee);
+        } catch {
+          return await this.createAttendee(attendee);
+        }
+      }
+      return json.data;
+    } catch (err: any) {
+      if (isLocalhost) {
+        try {
+          const directRes = await fetch('http://127.0.0.1:8000/api/attendees.php?action=save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(attendee),
+          });
+          const json = await directRes.json();
+          if (json.success) return json.data;
+        } catch {
+          // ignore
+        }
+      }
+      // If action=save failed network, try direct create/update
+      try {
+        return await this.updateAttendee(attendee);
+      } catch {
+        return await this.createAttendee(attendee);
+      }
     }
   },
 

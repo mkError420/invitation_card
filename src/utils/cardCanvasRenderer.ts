@@ -254,9 +254,13 @@ export async function renderCardToCanvas(
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
 
-    const fullText = field.label && field.label.trim() !== ''
-      ? `${field.label}${field.value}`
-      : field.value;
+    const cleanLabel = (field.label || '').trim();
+    const cleanValue = (field.value || '').trim();
+    const shouldShowLabel =
+      cleanLabel !== '' &&
+      cleanLabel !== cleanValue &&
+      !cleanValue.toLowerCase().startsWith(cleanLabel.toLowerCase());
+    const fullText = shouldShowLabel ? `${cleanLabel} ${cleanValue}` : cleanValue;
 
     // Dynamically adjust font size if text is very long (small increase to 39px)
     let fontSize = 39;

@@ -115,18 +115,35 @@ export default function App() {
               setAttendees(remoteAttendees);
               setSelectedAttendeeId(remoteAttendees[0].id);
             } else if (remoteAttendees && remoteAttendees.length === 0) {
-              const blankAttendee: Attendee = {
+              // Check if remoteConfig accidentally held attendee data (e.g. user typed into labels tab)
+              const hasAccidentalName = !!(remoteConfig?.labelName && remoteConfig.labelName.trim() !== '');
+              const initialAttendee: Attendee = {
                 id: `att-${Date.now()}`,
-                regNo: '০০০১',
-                name: '',
-                school: 'রংপুর জেলা স্কুল',
-                district: 'রংপুর',
-                guests: '১',
-                phone: '',
+                regNo: remoteConfig?.labelReg && remoteConfig.labelReg !== 'নিবন্ধন নং' ? remoteConfig.labelReg : '০০০১',
+                name: hasAccidentalName ? remoteConfig!.labelName : '',
+                school: hasAccidentalName ? (remoteConfig?.labelSchool || '') : '',
+                district: hasAccidentalName ? (remoteConfig?.labelDistrict || '') : '',
+                guests: hasAccidentalName ? (remoteConfig?.labelGuests || '১') : '১',
+                phone: hasAccidentalName ? (remoteConfig?.labelPhone || '') : '',
                 photoUrl: '',
               };
-              setAttendees([blankAttendee]);
-              setSelectedAttendeeId(blankAttendee.id);
+              setAttendees([initialAttendee]);
+              setSelectedAttendeeId(initialAttendee.id);
+
+              if (hasAccidentalName) {
+                // Sanitize the config in state & backend so labels aren't corrupted
+                const sanitizedConfig = {
+                  ...remoteConfig,
+                  labelName: '',
+                  labelSchool: '',
+                  labelDistrict: '',
+                  labelPhone: '',
+                  labelGuests: 'অতিথিঃ ',
+                  labelReg: 'নিবন্ধন নং',
+                };
+                setConfig(sanitizedConfig);
+                api.updateConfig(sanitizedConfig).catch(() => {});
+              }
             }
             if (remoteConfig && remoteConfig.mainTitle) {
               setConfig({
@@ -170,6 +187,11 @@ export default function App() {
     a4Pages.push([currentAttendee]);
   }
 
+  // Local card editor keystrokes (updates React state for instant live preview without hammering the backend)
+  const handleEditorChangeAttendee = (updated: Attendee) => {
+    setAttendees((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+  };
+
   // Save attendee from card editor to database & clear form for next entry
   const handleSaveCardAttendee = async (attendeeToSave: Attendee) => {
     let finalPhoto = attendeeToSave.photoUrl || '';
@@ -183,71 +205,61 @@ export default function App() {
     }
 
     const attendeeId = attendeeToSave.id || `att-${Date.now()}`;
-    const finalized: Attendee = { ...attendeeToSave, id: attendeeId, photoUrl: finalPhoto };
+    let finalized: Attendee = { ...attendeeToSave, id: attendeeId, photoUrl: finalPhoto };
 
-    // 1. Add or update in state
-    setAttendees((prev) => {
-      const exists = prev.some((a) => a.id === attendeeId);
-      if (exists) {
-        return prev.map((a) => (a.id === attendeeId ? finalized : a));
-      } else {
-        return [...prev, finalized];
-      }
-    });
-
-    // 2. Persist to database
+    // 1. Persist to website database if backend is online
     if (backendStatus.online) {
       try {
-        await api.updateAttendee(finalized);
-      } catch {
-        try {
-          await api.createAttendee(finalized);
-        } catch (e) {
-          console.warn('Backend save attendee error:', e);
+        const dbResult = await api.saveAttendee(finalized);
+        if (dbResult && dbResult.id) {
+          finalized = { ...finalized, id: dbResult.id };
         }
+      } catch (e) {
+        console.warn('Backend save attendee error:', e);
       }
     }
 
-    // 3. Clear form by generating a new blank attendee for next entry
-    const nextReg = getNextRegNo([...attendees, finalized]);
+    // 2. Prepare next sequential registration number and blank attendee for next entry
+    const allSavedSoFar = attendees
+      .filter((a) => a.name.trim() !== '' && a.id !== finalized.id)
+      .concat(finalized);
+    const nextReg = getNextRegNo(allSavedSoFar);
+
     const blankAttendee: Attendee = {
       id: `att-${Date.now() + 1}`,
       regNo: nextReg,
       name: '',
-      school: finalized.school || 'রংপুর জেলা স্কুল',
-      district: finalized.district || 'রংপুর',
+      school: '',
+      district: '',
       guests: '১',
       phone: '',
       photoUrl: '',
     };
 
+    // 3. Update React state with all saved members + new blank attendee
     setAttendees((prev) => {
-      const cleanList = prev.filter((a) => a.name.trim() !== '' || a.id === attendeeId);
-      const exists = cleanList.some((a) => a.id === attendeeId);
-      const updated = exists
-        ? cleanList.map((a) => (a.id === attendeeId ? finalized : a))
-        : [...cleanList, finalized];
-      return [...updated, blankAttendee];
+      const cleanList = prev.filter((a) => a.name.trim() !== '' && a.id !== attendeeId);
+      return [...cleanList, finalized, blankAttendee];
     });
+
+    // 4. Set currently selected to the new blank card so card fields become blank
     setSelectedAttendeeId(blankAttendee.id);
   };
 
   const handleClearCardForm = () => {
-    const nextReg = getNextRegNo(attendees);
+    const validAttendees = attendees.filter((a) => a.name.trim() !== '');
+    const nextReg = getNextRegNo(validAttendees);
     const blankAttendee: Attendee = {
       id: `att-${Date.now() + 1}`,
       regNo: nextReg,
       name: '',
-      school: currentAttendee.school || 'রংপুর জেলা স্কুল',
-      district: currentAttendee.district || 'রংপুর',
+      school: '',
+      district: '',
       guests: '১',
       phone: '',
       photoUrl: '',
     };
-    setAttendees((prev) => {
-      const cleanList = prev.filter((a) => a.name.trim() !== '');
-      return [...cleanList, blankAttendee];
-    });
+    setAttendees([...validAttendees, blankAttendee]);
     setSelectedAttendeeId(blankAttendee.id);
   };
 
@@ -859,7 +871,7 @@ export default function App() {
               <DynamicEditor
                 selectedAttendee={currentAttendee}
                 config={config}
-                onUpdateAttendee={handleUpdateAttendee}
+                onUpdateAttendee={handleEditorChangeAttendee}
                 onUpdateConfig={handleUpdateConfig}
                 onSaveAttendee={handleSaveCardAttendee}
                 onClearForm={handleClearCardForm}
