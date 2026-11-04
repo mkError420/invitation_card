@@ -66,8 +66,53 @@ class AttendeeModel {
      * Upsert / Save attendee (create if not found, update if exists)
      */
     public function save(array $data): array {
-        $id = !empty($data['id']) ? (string)$data['id'] : null;
-        if ($id && $this->getById($id)) {
+        $id = !empty($data['id']) ? (string)$data['id'] : 'att-' . round(microtime(true) * 1000);
+        $data['id'] = $id;
+
+        $driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'mysql') {
+            $regNo = (string)($data['regNo'] ?? $data['reg_no'] ?? '');
+            $name = trim((string)($data['name'] ?? ''));
+            $school = (string)($data['school'] ?? '');
+            $district = (string)($data['district'] ?? '');
+            $guests = (string)($data['guests'] ?? '১');
+            $phone = (string)($data['phone'] ?? '');
+            $photoUrl = (string)($data['photoUrl'] ?? $data['photo_url'] ?? '');
+
+            if (empty($name)) {
+                throw new InvalidArgumentException('Attendee name is required');
+            }
+
+            $stmt = $this->db->prepare("
+                INSERT INTO attendees (id, reg_no, name, school, district, guests, phone, photo_url, created_at, updated_at)
+                VALUES (:id, :reg_no, :name, :school, :district, :guests, :phone, :photo_url, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ON DUPLICATE KEY UPDATE
+                    reg_no = VALUES(reg_no),
+                    name = VALUES(name),
+                    school = VALUES(school),
+                    district = VALUES(district),
+                    guests = VALUES(guests),
+                    phone = VALUES(phone),
+                    photo_url = VALUES(photo_url),
+                    updated_at = CURRENT_TIMESTAMP
+            ");
+
+            $stmt->execute([
+                ':id' => $id,
+                ':reg_no' => $regNo,
+                ':name' => $name,
+                ':school' => $school,
+                ':district' => $district,
+                ':guests' => $guests,
+                ':phone' => $phone,
+                ':photo_url' => $photoUrl,
+            ]);
+
+            return $this->getById($id) ?? [];
+        }
+
+        // SQLite / generic fallback
+        if ($this->getById($id)) {
             $updated = $this->update($id, $data);
             if ($updated) return $updated;
         }

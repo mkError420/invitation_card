@@ -17,6 +17,7 @@ const API_BASE = getBaseUrl();
 export interface BackendStatus {
   online: boolean;
   driver?: string;
+  mysqlError?: string;
   phpVersion?: string;
   attendeesCount?: number;
   message?: string;
@@ -48,6 +49,7 @@ export const api = {
       return {
         online: true,
         driver: data.driver,
+        mysqlError: data.mysqlError,
         phpVersion: data.phpVersion,
         attendeesCount: data.attendeesCount,
         message: data.message,

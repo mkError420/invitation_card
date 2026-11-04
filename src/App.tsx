@@ -23,6 +23,26 @@ import { exportA4PagesToPdf, exportSingleCardImage } from './utils/pdfExport';
 import { preloadTemplateImage } from './utils/cardCanvasRenderer';
 import { toBengaliNumber, getNextRegNo, formatRegNo } from './utils/bengaliNumerals';
 
+// Helper to prepare attendees list with a fresh blank card at the end with the next ID
+function prepareAttendeesWithBlank(list: Attendee[]): { all: Attendee[]; blankId: string } {
+  const valid = list.filter((a) => (a.name || '').trim() !== '');
+  const nextReg = getNextRegNo(valid);
+  const blankCard: Attendee = {
+    id: `att-blank-${Date.now()}`,
+    regNo: nextReg,
+    name: '',
+    school: '',
+    district: '',
+    guests: '১',
+    phone: '',
+    photoUrl: '',
+  };
+  return {
+    all: [...valid, blankCard],
+    blankId: blankCard.id,
+  };
+}
+
 export default function App() {
   const [attendees, setAttendees] = useState<Attendee[]>(() => {
     try {
@@ -30,13 +50,13 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return prepareAttendeesWithBlank(parsed).all;
         }
       }
     } catch {
       // ignore
     }
-    return INITIAL_ATTENDEES;
+    return prepareAttendeesWithBlank([]).all;
   });
 
   const [selectedAttendeeId, setSelectedAttendeeId] = useState<string>(() => {
@@ -44,14 +64,14 @@ export default function App() {
       const saved = localStorage.getItem('somaborton_attendees_v1');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.id) {
-          return parsed[0].id;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return prepareAttendeesWithBlank(parsed).blankId;
         }
       }
     } catch {
       // ignore
     }
-    return INITIAL_ATTENDEES[0].id;
+    return prepareAttendeesWithBlank([]).blankId;
   });
 
   const [config, setConfig] = useState<EventConfig>(DEFAULT_EVENT_CONFIG);
@@ -112,38 +132,13 @@ export default function App() {
           ]);
           if (isMounted) {
             if (remoteAttendees && remoteAttendees.length > 0) {
-              setAttendees(remoteAttendees);
-              setSelectedAttendeeId(remoteAttendees[0].id);
+              const prep = prepareAttendeesWithBlank(remoteAttendees);
+              setAttendees(prep.all);
+              setSelectedAttendeeId(prep.blankId);
             } else if (remoteAttendees && remoteAttendees.length === 0) {
-              // Check if remoteConfig accidentally held attendee data (e.g. user typed into labels tab)
-              const hasAccidentalName = !!(remoteConfig?.labelName && remoteConfig.labelName.trim() !== '');
-              const initialAttendee: Attendee = {
-                id: `att-${Date.now()}`,
-                regNo: remoteConfig?.labelReg && remoteConfig.labelReg !== 'নিবন্ধন নং' ? remoteConfig.labelReg : '০০০১',
-                name: hasAccidentalName ? remoteConfig!.labelName : '',
-                school: hasAccidentalName ? (remoteConfig?.labelSchool || '') : '',
-                district: hasAccidentalName ? (remoteConfig?.labelDistrict || '') : '',
-                guests: hasAccidentalName ? (remoteConfig?.labelGuests || '১') : '১',
-                phone: hasAccidentalName ? (remoteConfig?.labelPhone || '') : '',
-                photoUrl: '',
-              };
-              setAttendees([initialAttendee]);
-              setSelectedAttendeeId(initialAttendee.id);
-
-              if (hasAccidentalName) {
-                // Sanitize the config in state & backend so labels aren't corrupted
-                const sanitizedConfig = {
-                  ...remoteConfig,
-                  labelName: '',
-                  labelSchool: '',
-                  labelDistrict: '',
-                  labelPhone: '',
-                  labelGuests: 'অতিথিঃ ',
-                  labelReg: 'নিবন্ধন নং',
-                };
-                setConfig(sanitizedConfig);
-                api.updateConfig(sanitizedConfig).catch(() => {});
-              }
+              const prep = prepareAttendeesWithBlank([]);
+              setAttendees(prep.all);
+              setSelectedAttendeeId(prep.blankId);
             }
             if (remoteConfig && remoteConfig.mainTitle) {
               setConfig({
@@ -214,8 +209,9 @@ export default function App() {
         if (dbResult && dbResult.id) {
           finalized = { ...finalized, id: dbResult.id };
         }
-      } catch (e) {
-        console.warn('Backend save attendee error:', e);
+      } catch (e: any) {
+        console.error('Backend save attendee error:', e);
+        throw new Error('ডাটাবেজে সংরক্ষণ ব্যর্থ হয়েছে: ' + (e?.message || 'সার্ভার সমস্যা'));
       }
     }
 
@@ -223,44 +219,17 @@ export default function App() {
     const allSavedSoFar = attendees
       .filter((a) => a.name.trim() !== '' && a.id !== finalized.id)
       .concat(finalized);
-    const nextReg = getNextRegNo(allSavedSoFar);
 
-    const blankAttendee: Attendee = {
-      id: `att-${Date.now() + 1}`,
-      regNo: nextReg,
-      name: '',
-      school: '',
-      district: '',
-      guests: '১',
-      phone: '',
-      photoUrl: '',
-    };
-
-    // 3. Update React state with all saved members + new blank attendee
-    setAttendees((prev) => {
-      const cleanList = prev.filter((a) => a.name.trim() !== '' && a.id !== attendeeId);
-      return [...cleanList, finalized, blankAttendee];
-    });
-
-    // 4. Set currently selected to the new blank card so card fields become blank
-    setSelectedAttendeeId(blankAttendee.id);
+    const prep = prepareAttendeesWithBlank(allSavedSoFar);
+    setAttendees(prep.all);
+    setSelectedAttendeeId(prep.blankId);
   };
 
   const handleClearCardForm = () => {
     const validAttendees = attendees.filter((a) => a.name.trim() !== '');
-    const nextReg = getNextRegNo(validAttendees);
-    const blankAttendee: Attendee = {
-      id: `att-${Date.now() + 1}`,
-      regNo: nextReg,
-      name: '',
-      school: '',
-      district: '',
-      guests: '১',
-      phone: '',
-      photoUrl: '',
-    };
-    setAttendees([...validAttendees, blankAttendee]);
-    setSelectedAttendeeId(blankAttendee.id);
+    const prep = prepareAttendeesWithBlank(validAttendees);
+    setAttendees(prep.all);
+    setSelectedAttendeeId(prep.blankId);
   };
 
   // Handlers
@@ -685,7 +654,7 @@ export default function App() {
               }`}
               title={
                 backendStatus.online
-                  ? `PHP ব্যাকএন্ড সক্রিয় (${backendStatus.driver?.toUpperCase() || 'SQLite'} ডাটাবেজ) - ${attendees.length} জন সদস্য সংরক্ষিত`
+                  ? `PHP ব্যাকএন্ড সক্রিয় (${backendStatus.driver?.toUpperCase() || 'SQLite'} ডাটাবেজ)${backendStatus.mysqlError ? ` [MySQL দ্রষ্টব্য: ${backendStatus.mysqlError}]` : ''}`
                   : 'PHP ব্যাকএন্ড অফলাইন (লোকাল মোড চলছে)'
               }
             >

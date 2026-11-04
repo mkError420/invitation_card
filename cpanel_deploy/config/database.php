@@ -38,28 +38,34 @@ loadEnv();
 
 class Database {
     private static ?PDO $pdo = null;
+    public static ?string $mysqlError = null;
+    private static bool $fallbackToSqlite = false;
 
     public static function getConnection(): PDO {
         if (self::$pdo !== null) {
             return self::$pdo;
         }
 
-        $connection = getenv('DB_CONNECTION') ?: 'sqlite';
+        // Direct config file takes top priority for InfinityFree / cPanel compatibility
+        $configFile = __DIR__ . '/db_config.php';
+        $cfg = file_exists($configFile) ? require($configFile) : [];
+
+        $connection = self::$fallbackToSqlite ? 'sqlite' : ($cfg['connection'] ?? (getenv('DB_CONNECTION') ?: 'mysql'));
 
         try {
             if ($connection === 'mysql') {
-                $host = getenv('DB_HOST') ?: 'sql101.infinityfree.com';
-                $port = getenv('DB_PORT') ?: '3306';
-                $dbname = getenv('DB_DATABASE') ?: 'if0_42784359_myscmanagement';
-                $username = getenv('DB_USERNAME') ?: 'if0_42784359';
-                $password = getenv('DB_PASSWORD') ?: '4naAUPQvgRj3';
+                $host = $cfg['host'] ?? (getenv('DB_HOST') ?: 'sql101.infinityfree.com');
+                $port = $cfg['port'] ?? (getenv('DB_PORT') ?: '3306');
+                $dbname = $cfg['database'] ?? (getenv('DB_DATABASE') ?: 'if0_42784359_myscmanagement');
+                $username = $cfg['username'] ?? (getenv('DB_USERNAME') ?: 'if0_42784359');
+                $password = $cfg['password'] ?? (getenv('DB_PASSWORD') ?: '4naAUPQvgRj3');
 
                 $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
                 $options = [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_EMULATE_PREPARES => false,
-                    PDO::ATTR_TIMEOUT => 4,
+                    PDO::ATTR_TIMEOUT => 10,
                 ];
                 self::$pdo = new PDO($dsn, $username, $password, $options);
 
@@ -100,11 +106,11 @@ class Database {
 
             return self::$pdo;
         } catch (PDOException $e) {
-            // If MySQL failed and fallback is possible, try SQLite
-            if ($connection === 'mysql') {
+            // If MySQL failed and fallback is possible, try SQLite ONCE
+            if ($connection === 'mysql' && !self::$fallbackToSqlite) {
+                self::$mysqlError = $e->getMessage();
+                self::$fallbackToSqlite = true;
                 error_log("MySQL connection failed: " . $e->getMessage() . ". Falling back to SQLite.");
-                putenv("DB_CONNECTION=sqlite");
-                $_ENV['DB_CONNECTION'] = 'sqlite';
                 return self::getConnection();
             }
 
