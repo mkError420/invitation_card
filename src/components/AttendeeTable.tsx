@@ -9,6 +9,8 @@ import {
   Camera,
   Printer,
   Pencil,
+  Share2,
+  ExternalLink,
 } from 'lucide-react';
 import { Attendee, EventConfig, DEFAULT_EVENT_CONFIG } from '../types';
 import { getNextRegNo, formatRegNo } from '../utils/bengaliNumerals';
@@ -26,6 +28,7 @@ interface AttendeeTableProps {
   onPhotoUpload: (id: string, photoUrl: string) => void;
   onBulkPrint?: () => void;
   onPrintAttendee?: (attendee: Attendee, mode: 'single' | 'sheet4') => void;
+  onShareFormLink?: () => void;
   isPreparingPrint?: boolean;
 }
 
@@ -40,6 +43,7 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
   onPhotoUpload,
   onBulkPrint,
   onPrintAttendee,
+  onShareFormLink,
   isPreparingPrint = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -124,6 +128,17 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {onShareFormLink && (
+            <button
+              onClick={onShareFormLink}
+              title="আমন্ত্রিত বন্ধুদের জন্য অনলাইন নিবন্ধন ফর্ম লিংক কপি করুন"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-teal-950/80 hover:bg-teal-900 border border-teal-700/60 text-teal-300 hover:text-white rounded-lg text-xs font-semibold transition shadow-sm"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>আমন্ত্রণ ফর্ম লিংক</span>
+            </button>
+          )}
+
           {onBulkPrint && (
             <button
               onClick={onBulkPrint}

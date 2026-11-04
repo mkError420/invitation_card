@@ -59,6 +59,11 @@ $updatedConfig = $configModel->update(['venue' => 'রংপুর জিলা 
 assert($updatedConfig['venue'] === 'রংপুর জিলা পরিষদ মিলনায়তন', "Config venue update failed");
 echo "✓ EventConfigModel::update venue updated successfully\n";
 
+// 8. Test getNextRegNo
+$nextReg = $attendeeModel->getNextRegNo();
+assert(!empty($nextReg), "Next reg no should not be empty");
+echo "✓ AttendeeModel::getNextRegNo generated: {$nextReg}\n";
+
 // Revert venue back to default
 $configModel->update(['venue' => 'আনান সিটি পার্ক, রংপুর']);
 echo "✓ Reverted venue back to default\n";

@@ -11,6 +11,9 @@ import {
   Users,
   Copy,
   Loader2,
+  Share2,
+  ExternalLink,
+  Check,
 } from 'lucide-react';
 import { Attendee, EventConfig, DEFAULT_EVENT_CONFIG, INITIAL_ATTENDEES } from './types';
 import { api, BackendStatus } from './services/api';
@@ -19,6 +22,7 @@ import { PrintA4Sheet } from './components/PrintA4Sheet';
 import { DynamicEditor } from './components/DynamicEditor';
 import { AttendeeTable } from './components/AttendeeTable';
 import { CsvUploaderModal } from './components/CsvUploaderModal';
+import { PublicRegistrationForm } from './components/PublicRegistrationForm';
 import { exportA4PagesToPdf, exportSingleCardImage } from './utils/pdfExport';
 import { preloadTemplateImage } from './utils/cardCanvasRenderer';
 import { toBengaliNumber, getNextRegNo, formatRegNo } from './utils/bengaliNumerals';
@@ -44,6 +48,42 @@ function prepareAttendeesWithBlank(list: Attendee[]): { all: Attendee[]; blankId
 }
 
 export default function App() {
+  // Check if opened via public shareable registration link (?register=1, ?form=register, #register, /register)
+  const isPublicRegistration = (() => {
+    if (typeof window === 'undefined') return false;
+    const search = window.location.search;
+    const urlParams = new URLSearchParams(search);
+    const hash = window.location.hash;
+    const pathname = window.location.pathname;
+    return (
+      urlParams.has('register') ||
+      urlParams.get('form') === 'register' ||
+      urlParams.get('mode') === 'register' ||
+      hash === '#register' ||
+      hash === '#/register' ||
+      pathname.endsWith('/register')
+    );
+  })();
+
+  const [copiedLinkToast, setCopiedLinkToast] = useState(false);
+
+  const handleCopyRegistrationLink = () => {
+    if (typeof window === 'undefined') return;
+    const origin = window.location.origin;
+    const pathname = window.location.pathname;
+    const shareableUrl = `${origin}${pathname}?register=1`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(shareableUrl).then(() => {
+        setCopiedLinkToast(true);
+        setTimeout(() => setCopiedLinkToast(false), 3500);
+      }).catch(() => {
+        window.prompt('নিচের আমন্ত্রণ ফর্ম লিংকটি কপি করুন:', shareableUrl);
+      });
+    } else {
+      window.prompt('নিচের আমন্ত্রণ ফর্ম লিংকটি কপি করুন:', shareableUrl);
+    }
+  };
+
   const [attendees, setAttendees] = useState<Attendee[]>(() => {
     try {
       const saved = localStorage.getItem('somaborton_attendees_v1');
@@ -621,6 +661,23 @@ export default function App() {
     }
   };
 
+  if (isPublicRegistration) {
+    return (
+      <PublicRegistrationForm
+        config={config}
+        onRegistered={(newMember) => {
+          try {
+            const saved = localStorage.getItem('somaborton_attendees_v1');
+            const existing = saved ? JSON.parse(saved) : [];
+            localStorage.setItem('somaborton_attendees_v1', JSON.stringify([...existing, newMember]));
+          } catch (e) {
+            // ignore
+          }
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-bangla">
       {/* Top Navigation Bar */}
@@ -670,6 +727,25 @@ export default function App() {
               </span>
               {isSyncing && <Loader2 className="w-3 h-3 animate-spin text-emerald-400 ml-1" />}
             </div>
+
+            {/* Share Public Form Link Button */}
+            <button
+              onClick={handleCopyRegistrationLink}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition shadow-sm border ${
+                copiedLinkToast
+                  ? 'bg-emerald-600 border-emerald-500 text-white'
+                  : 'bg-teal-950/80 hover:bg-teal-900 border-teal-700/60 text-teal-300 hover:text-white'
+              }`}
+              title="আমন্ত্রিত বন্ধুদের জন্য অনলাইন নিবন্ধন ফর্মের লিংক কপি করুন"
+            >
+              {copiedLinkToast ? (
+                <Check className="w-4 h-4 text-emerald-200" />
+              ) : (
+                <Share2 className="w-4 h-4 text-teal-400" />
+              )}
+              <span className="hidden sm:inline">{copiedLinkToast ? 'লিংক কপি হয়েছে!' : 'আমন্ত্রণ ফর্ম লিংক'}</span>
+              <span className="sm:hidden">{copiedLinkToast ? 'কপি!' : 'লিংক'}</span>
+            </button>
 
             <button
               onClick={() => setIsCsvModalOpen(true)}
@@ -958,6 +1034,7 @@ export default function App() {
               onPhotoUpload={handlePhotoUpload}
               onBulkPrint={handleBrowserPrint}
               onPrintAttendee={handlePrintSingleAttendee}
+              onShareFormLink={handleCopyRegistrationLink}
               isPreparingPrint={isPreparingPrint}
             />
           </div>
@@ -1029,6 +1106,14 @@ export default function App() {
               অনুগ্রহ করে অপেক্ষা করুন, হাই-রেজোলিউশন PDF প্রস্তুত হচ্ছে...
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Floating Toast Notification for Copied Registration Link */}
+      {copiedLinkToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs sm:text-sm font-semibold border border-emerald-400/40">
+          <Check className="w-5 h-5 bg-white/20 rounded-full p-1 shrink-0 text-white" />
+          <span>অনলাইন আমন্ত্রণ ফর্ম লিংক কপি হয়েছে! বন্ধুদের হোয়াটসঅ্যাপ বা মেসেঞ্জারে পাঠিয়ে দিন।</span>
         </div>
       )}
     </div>

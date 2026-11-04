@@ -63,15 +63,51 @@ class AttendeeModel {
     }
 
     /**
+     * Calculate next sequential registration number in Bengali digits (First In, First ID: ০০০১, ০০০২...)
+     */
+    public function getNextRegNo(): string {
+        $stmt = $this->db->query("SELECT reg_no FROM attendees");
+        $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        $bnToEn = [
+            '০' => '0', '১' => '1', '২' => '2', '৩' => '3', '৪' => '4',
+            '৫' => '5', '৬' => '6', '৭' => '7', '৮' => '8', '৯' => '9'
+        ];
+        $enToBn = [
+            '0' => '০', '1' => '১', '2' => '২', '3' => '৩', '4' => '৪',
+            '5' => '৫', '6' => '৬', '7' => '৭', '8' => '৮', '9' => '৯'
+        ];
+
+        $maxNum = 0;
+        foreach ($rows as $reg) {
+            $digits = preg_replace('/\D/', '', strtr((string)$reg, $bnToEn));
+            if ($digits !== '') {
+                $val = (int)$digits;
+                if ($val > $maxNum) {
+                    $maxNum = $val;
+                }
+            }
+        }
+        $nextNum = $maxNum + 1;
+        $padded = str_pad((string)$nextNum, 4, '0', STR_PAD_LEFT);
+        return strtr($padded, $enToBn);
+    }
+
+    /**
      * Upsert / Save attendee (create if not found, update if exists)
      */
     public function save(array $data): array {
         $id = !empty($data['id']) ? (string)$data['id'] : 'att-' . round(microtime(true) * 1000);
         $data['id'] = $id;
 
+        $regNo = trim((string)($data['regNo'] ?? $data['reg_no'] ?? ''));
+        if (empty($regNo)) {
+            $regNo = $this->getNextRegNo();
+            $data['regNo'] = $regNo;
+        }
+
         $driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
         if ($driver === 'mysql') {
-            $regNo = (string)($data['regNo'] ?? $data['reg_no'] ?? '');
             $name = trim((string)($data['name'] ?? ''));
             $school = (string)($data['school'] ?? '');
             $district = (string)($data['district'] ?? '');
@@ -124,7 +160,10 @@ class AttendeeModel {
      */
     public function create(array $data): array {
         $id = !empty($data['id']) ? (string)$data['id'] : 'att-' . round(microtime(true) * 1000);
-        $regNo = (string)($data['regNo'] ?? $data['reg_no'] ?? '');
+        $regNo = trim((string)($data['regNo'] ?? $data['reg_no'] ?? ''));
+        if (empty($regNo)) {
+            $regNo = $this->getNextRegNo();
+        }
         $name = trim((string)($data['name'] ?? ''));
         $school = (string)($data['school'] ?? '');
         $district = (string)($data['district'] ?? '');

@@ -100,6 +100,27 @@ export const api = {
   },
 
   /**
+   * Public registration for invited guests (auto generates sequential first-come ID)
+   */
+  async registerPublicAttendee(data: {
+    name: string;
+    school?: string;
+    district?: string;
+    guests?: string;
+    phone?: string;
+    photoUrl?: string;
+  }): Promise<Attendee> {
+    const res = await fetch(`${API_BASE}/attendees.php?action=public_register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'নিবন্ধন সম্পন্ন করা যায়নি');
+    return json.data;
+  },
+
+  /**
    * Save attendee (upsert: create or update) in database
    */
   async saveAttendee(attendee: Attendee): Promise<Attendee> {
