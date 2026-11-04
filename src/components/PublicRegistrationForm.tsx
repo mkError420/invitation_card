@@ -128,7 +128,7 @@ export const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({
 
           {/* Event Badge */}
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold mb-3 border border-emerald-500/30">
-            <Sparkles className="w-3.5 h-3.5" />
+
             <span>{config.headerArcTitle || 'এসএসসি ৮৮ ব্যাচের বন্ধুদের মিলনমেলা'}</span>
           </div>
 
@@ -370,11 +370,10 @@ export const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({
                     key={val}
                     type="button"
                     onClick={() => setGuests(val)}
-                    className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-bold border transition ${
-                      guests === val
-                        ? 'bg-emerald-600 border-emerald-500 text-white shadow-sm'
-                        : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
-                    }`}
+                    className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-bold border transition ${guests === val
+                      ? 'bg-emerald-600 border-emerald-500 text-white shadow-sm'
+                      : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                      }`}
                   >
                     {val} জন
                   </button>
