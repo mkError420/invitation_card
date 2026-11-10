@@ -49,6 +49,21 @@ $checkDeleted = $attendeeModel->getById($created['id']);
 assert($checkDeleted === null, "Deleted attendee should no longer exist");
 echo "✓ AttendeeModel::delete deleted attendee successfully\n";
 
+// 6b. Test resequenceRegNumbers
+$attendeeModel->resetToDefault();
+$allBefore = $attendeeModel->getAll();
+$countBefore = count($allBefore);
+$targetToDelete = $allBefore[1]; // att-2 (০০০২)
+$nextTarget = $allBefore[2];     // att-3 (০০০৩)
+$attendeeModel->delete($targetToDelete['id']);
+$allAfter = $attendeeModel->getAll();
+assert(count($allAfter) === $countBefore - 1, "Count should decrease by 1");
+$updatedNextTarget = $attendeeModel->getById($nextTarget['id']);
+assert($updatedNextTarget['regNo'] === '০০০২', "att-3 regNo should have adjusted from ০০০৩ to ০০০২");
+// Restore default sample seed
+$attendeeModel->resetToDefault();
+echo "✓ Resequencing upon deletion verified: registration numbers adjust seamlessly!\n";
+
 // 7. Test EventConfigModel
 $configModel = new EventConfigModel();
 $config = $configModel->get();

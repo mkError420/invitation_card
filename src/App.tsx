@@ -25,7 +25,7 @@ import { CsvUploaderModal } from './components/CsvUploaderModal';
 import { PublicRegistrationForm } from './components/PublicRegistrationForm';
 import { exportA4PagesToPdf, exportSingleCardImage } from './utils/pdfExport';
 import { preloadTemplateImage } from './utils/cardCanvasRenderer';
-import { toBengaliNumber, getNextRegNo, formatRegNo } from './utils/bengaliNumerals';
+import { toBengaliNumber, getNextRegNo, formatRegNo, toEnglishNumber } from './utils/bengaliNumerals';
 
 // Helper to prepare attendees list with a fresh blank card at the end with the next ID
 function prepareAttendeesWithBlank(list: Attendee[]): { all: Attendee[]; blankId: string } {
@@ -48,20 +48,21 @@ function prepareAttendeesWithBlank(list: Attendee[]): { all: Attendee[]; blankId
 }
 
 export default function App() {
-  // Check if opened via public shareable registration link (?register=1, ?form=register, #register, /register)
+  // Check if opened via public shareable registration link (/register, /register/, ?register=1, ?form=register, #register)
   const isPublicRegistration = (() => {
     if (typeof window === 'undefined') return false;
     const search = window.location.search;
     const urlParams = new URLSearchParams(search);
     const hash = window.location.hash;
-    const pathname = window.location.pathname;
+    const pathname = window.location.pathname.replace(/\/+$/, '');
     return (
+      pathname.endsWith('/register') ||
+      pathname === '/register' ||
       urlParams.has('register') ||
       urlParams.get('form') === 'register' ||
       urlParams.get('mode') === 'register' ||
       hash === '#register' ||
-      hash === '#/register' ||
-      pathname.endsWith('/register')
+      hash === '#/register'
     );
   })();
 
@@ -70,8 +71,8 @@ export default function App() {
   const handleCopyRegistrationLink = () => {
     if (typeof window === 'undefined') return;
     const origin = window.location.origin;
-    const pathname = window.location.pathname;
-    const shareableUrl = `${origin}${pathname}?register=1`;
+    const basePath = window.location.pathname.replace(/\/register\/?$/, '').replace(/\/+$/, '');
+    const shareableUrl = `${origin}${basePath}/register`;
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(shareableUrl).then(() => {
         setCopiedLinkToast(true);
@@ -337,55 +338,61 @@ export default function App() {
   const handleDeleteAttendee = async (id: string) => {
     const target = attendees.find((a) => a.id === id);
     const targetName = target?.name ? `"${target.name}"` : 'এই সদস্যকে';
-    if (!window.confirm(`${targetName} তালিকা এবং ডাটাবেজ থেকে স্থায়ীভাবে মুছে ফেলতে চান?`)) {
+    if (!window.confirm(`${targetName} তালিকা এবং ডাটাবেজ থেকে মুছে ফেলতে চান? বাকি সদস্যদের নিবন্ধন নম্বর (আইডি) স্বয়ংক্রিয়ভাবে সিরিয়াল অনুযায়ী ঠিক করা হবে।`)) {
       return;
     }
 
-    // 1. Immediately remove from frontend state and localStorage
-    const filtered = attendees.filter((a) => a.id !== id);
-    let nextAttendees: Attendee[];
-    if (filtered.length === 0) {
-      const blankAttendee: Attendee = {
-        id: `att-${Date.now()}`,
-        regNo: '০০০১',
-        name: '',
-        school: 'রংপুর জেলা স্কুল',
-        district: 'রংপুর',
-        guests: '১',
-        phone: '',
-        photoUrl: '',
-      };
-      nextAttendees = [blankAttendee];
-      setAttendees(nextAttendees);
-      setSelectedAttendeeId(blankAttendee.id);
-    } else {
-      nextAttendees = filtered;
-      setAttendees(nextAttendees);
-      if (selectedAttendeeId === id) {
-        setSelectedAttendeeId(filtered[0].id);
-      }
+    // 1. Filter out the deleted attendee
+    const remainingValid = attendees.filter((a) => a.id !== id && (a.name || '').trim() !== '');
+
+    // 2. Sort remaining members by numerical regNo to maintain original relative order
+    remainingValid.sort((a, b) => {
+      const numA = parseInt(toEnglishNumber(a.regNo || '').replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(toEnglishNumber(b.regNo || '').replace(/\D/g, ''), 10) || 0;
+      return numA - numB;
+    });
+
+    // 3. Re-adjust the registration numbers sequentially (০০০১, ০০০২, ০০০৩...)
+    const resequenced: Attendee[] = remainingValid.map((member, index) => ({
+      ...member,
+      regNo: formatRegNo(index + 1),
+    }));
+
+    // 4. Prepare attendees list with next blank card (whose regNo will automatically be next in sequence)
+    const prep = prepareAttendeesWithBlank(resequenced);
+    setAttendees(prep.all);
+
+    // If the deleted attendee was currently selected, select the new blank card
+    if (selectedAttendeeId === id || !resequenced.some((a) => a.id === selectedAttendeeId)) {
+      setSelectedAttendeeId(prep.blankId);
     }
 
+    // 5. Update localStorage with re-adjusted list
     try {
-      localStorage.setItem('somaborton_attendees_v1', JSON.stringify(nextAttendees));
+      localStorage.setItem('somaborton_attendees_v1', JSON.stringify(resequenced));
     } catch (e) {
       console.warn('LocalStorage save attendees failed:', e);
     }
 
-    // 2. Permanently delete from backend database (SQLite / MySQL)
-    try {
-      const deleted = await api.deleteAttendee(id);
-      if (!deleted && target?.regNo) {
-        await api.deleteAttendee(target.regNo);
-      }
-    } catch (err) {
-      console.warn('Backend delete attendee failed:', err);
-      if (target?.regNo) {
-        try {
-          await api.deleteAttendee(target.regNo);
-        } catch (e2) {
-          console.warn('Backend delete by regNo failed:', e2);
+    // 6. Delete from backend database and re-sequence in MySQL / SQLite
+    if (backendStatus.online) {
+      try {
+        const deleteRes = await api.deleteAttendee(id);
+        if (deleteRes.data && Array.isArray(deleteRes.data)) {
+          // If server returned updated list, sync with server's resequenced list
+          const serverPrep = prepareAttendeesWithBlank(deleteRes.data);
+          setAttendees(serverPrep.all);
+          try {
+            localStorage.setItem('somaborton_attendees_v1', JSON.stringify(deleteRes.data));
+          } catch {
+            // ignore
+          }
+        } else if (resequenced.length > 0) {
+          // Fallback: batch update the re-sequenced list to ensure IDs match in database
+          await api.batchImport(resequenced, 'replace');
         }
+      } catch (err) {
+        console.warn('Backend delete / resequence attendee failed:', err);
       }
     }
   };
@@ -598,7 +605,7 @@ export default function App() {
       await Promise.all(
         printImages.map((img) => {
           if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-          return img.decode().catch(() => {});
+          return img.decode().catch(() => { });
         })
       );
     } catch (err) {
@@ -629,7 +636,7 @@ export default function App() {
       await Promise.all(
         printImages.map((img) => {
           if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-          return img.decode().catch(() => {});
+          return img.decode().catch(() => { });
         })
       );
     } catch (err) {
@@ -685,7 +692,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Logo & Title */}
           <div className="flex items-center space-x-3">
-                        <div>
+            <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base sm:text-lg font-bold text-white tracking-tight">
                   {config.mainTitle} - ইনভাইটেশন কার্ড জেনারেটর
@@ -704,11 +711,10 @@ export default function App() {
           <div className="flex items-center space-x-2">
             {/* Database / Backend Status Indicator */}
             <div
-              className={`hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition ${
-                backendStatus.online
-                  ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
-                  : 'bg-amber-950/40 border-amber-500/30 text-amber-300'
-              }`}
+              className={`hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition ${backendStatus.online
+                ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
+                : 'bg-amber-950/40 border-amber-500/30 text-amber-300'
+                }`}
               title={
                 backendStatus.online
                   ? `PHP ব্যাকএন্ড সক্রিয় (${backendStatus.driver?.toUpperCase() || 'SQLite'} ডাটাবেজ)${backendStatus.mysqlError ? ` [MySQL দ্রষ্টব্য: ${backendStatus.mysqlError}]` : ''}`
@@ -716,9 +722,8 @@ export default function App() {
               }
             >
               <span
-                className={`w-2 h-2 rounded-full ${
-                  backendStatus.online ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
-                }`}
+                className={`w-2 h-2 rounded-full ${backendStatus.online ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+                  }`}
               />
               <span>
                 {backendStatus.online
@@ -731,11 +736,10 @@ export default function App() {
             {/* Share Public Form Link Button */}
             <button
               onClick={handleCopyRegistrationLink}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition shadow-sm border ${
-                copiedLinkToast
-                  ? 'bg-emerald-600 border-emerald-500 text-white'
-                  : 'bg-teal-950/80 hover:bg-teal-900 border-teal-700/60 text-teal-300 hover:text-white'
-              }`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition shadow-sm border ${copiedLinkToast
+                ? 'bg-emerald-600 border-emerald-500 text-white'
+                : 'bg-teal-950/80 hover:bg-teal-900 border-teal-700/60 text-teal-300 hover:text-white'
+                }`}
               title="আমন্ত্রিত বন্ধুদের জন্য অনলাইন নিবন্ধন ফর্মের লিংক কপি করুন"
             >
               {copiedLinkToast ? (
@@ -792,11 +796,10 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex border-t border-slate-800/80 bg-slate-900/60 text-xs">
           <button
             onClick={() => setActiveView('single')}
-            className={`py-2.5 px-4 font-semibold flex items-center gap-2 border-b-2 transition ${
-              activeView === 'single'
-                ? 'border-emerald-500 text-emerald-400 bg-slate-850/50'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
+            className={`py-2.5 px-4 font-semibold flex items-center gap-2 border-b-2 transition ${activeView === 'single'
+              ? 'border-emerald-500 text-emerald-400 bg-slate-850/50'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
           >
             <Eye className="w-4 h-4" />
             <span>একক কার্ড প্রিভিউ ও এডিটর</span>
@@ -804,11 +807,10 @@ export default function App() {
 
           <button
             onClick={() => setActiveView('a4print')}
-            className={`py-2.5 px-4 font-semibold flex items-center gap-2 border-b-2 transition ${
-              activeView === 'a4print'
-                ? 'border-emerald-500 text-emerald-400 bg-slate-850/50'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
+            className={`py-2.5 px-4 font-semibold flex items-center gap-2 border-b-2 transition ${activeView === 'a4print'
+              ? 'border-emerald-500 text-emerald-400 bg-slate-850/50'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
           >
             <Grid className="w-4 h-4" />
             <span>A4 প্রিন্ট পেজ ভিউ ({a4Pages.length} পেজ, ৪টি/পেজ)</span>
@@ -816,11 +818,10 @@ export default function App() {
 
           <button
             onClick={() => setActiveView('table')}
-            className={`py-2.5 px-4 font-semibold flex items-center gap-2 border-b-2 transition ${
-              activeView === 'table'
-                ? 'border-emerald-500 text-emerald-400 bg-slate-850/50'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
+            className={`py-2.5 px-4 font-semibold flex items-center gap-2 border-b-2 transition ${activeView === 'table'
+              ? 'border-emerald-500 text-emerald-400 bg-slate-850/50'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
           >
             <Users className="w-4 h-4" />
             <span>সদস্য ডাটাবেজ ({validSavedAttendees.length} জন)</span>
@@ -1052,11 +1053,11 @@ export default function App() {
             attendees={
               singlePrintTarget.mode === 'sheet4'
                 ? [
-                    singlePrintTarget.attendee,
-                    singlePrintTarget.attendee,
-                    singlePrintTarget.attendee,
-                    singlePrintTarget.attendee,
-                  ]
+                  singlePrintTarget.attendee,
+                  singlePrintTarget.attendee,
+                  singlePrintTarget.attendee,
+                  singlePrintTarget.attendee,
+                ]
                 : [singlePrintTarget.attendee]
             }
             config={config}

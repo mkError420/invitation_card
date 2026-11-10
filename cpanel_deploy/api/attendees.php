@@ -86,7 +86,8 @@ try {
                     exit;
                 }
                 $deleted = $model->delete($targetId);
-                echo json_encode(['success' => true, 'deleted' => $deleted], JSON_UNESCAPED_UNICODE);
+                $remaining = $model->getAll();
+                echo json_encode(['success' => true, 'deleted' => $deleted, 'data' => $remaining], JSON_UNESCAPED_UNICODE);
                 exit;
             }
 

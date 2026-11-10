@@ -49,7 +49,19 @@ class AttendeeModel {
         }
 
         $rows = $stmt->fetchAll();
-        return array_map([self::class, 'formatRow'], $rows);
+        $result = array_map([self::class, 'formatRow'], $rows);
+
+        $bnToEn = [
+            '০' => '0', '১' => '1', '২' => '2', '৩' => '3', '৪' => '4',
+            '৫' => '5', '৬' => '6', '৭' => '7', '৮' => '8', '৯' => '9'
+        ];
+        usort($result, function ($a, $b) use ($bnToEn) {
+            $numA = (int)preg_replace('/\D/', '', strtr((string)($a['regNo'] ?? ''), $bnToEn));
+            $numB = (int)preg_replace('/\D/', '', strtr((string)($b['regNo'] ?? ''), $bnToEn));
+            return $numA <=> $numB;
+        });
+
+        return $result;
     }
 
     /**
@@ -239,7 +251,7 @@ class AttendeeModel {
     }
 
     /**
-     * Delete attendee by ID
+     * Delete attendee by ID and re-adjust remaining registration numbers sequentially (০০০১, ০০০২...)
      */
     public function delete(string $id): bool {
         // Also remove uploaded photo if it was a local server upload
@@ -264,7 +276,53 @@ class AttendeeModel {
 
         $stmt = $this->db->prepare("DELETE FROM attendees WHERE id = :id OR reg_no = :id2");
         $stmt->execute([':id' => $id, ':id2' => $id]);
-        return $stmt->rowCount() > 0;
+        $deleted = $stmt->rowCount() > 0;
+
+        if ($deleted) {
+            $this->resequenceRegNumbers();
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * Re-sequence all existing attendees' registration numbers sequentially: ০০০১, ০০০২, ০০০৩...
+     */
+    public function resequenceRegNumbers(): array {
+        $rows = $this->getAll();
+        if (empty($rows)) {
+            return [];
+        }
+
+        $bnToEn = [
+            '০' => '0', '১' => '1', '২' => '2', '৩' => '3', '৪' => '4',
+            '৫' => '5', '৬' => '6', '৭' => '7', '৮' => '8', '৯' => '9'
+        ];
+        $enToBn = [
+            '0' => '০', '1' => '১', '2' => '২', '3' => '৩', '4' => '৪',
+            '5' => '৫', '6' => '৬', '7' => '৭', '8' => '৮', '9' => '৯'
+        ];
+
+        // Sort rows by numerical regNo to maintain relative sequence
+        usort($rows, function ($a, $b) use ($bnToEn) {
+            $numA = (int)preg_replace('/\D/', '', strtr((string)($a['regNo'] ?? ''), $bnToEn));
+            $numB = (int)preg_replace('/\D/', '', strtr((string)($b['regNo'] ?? ''), $bnToEn));
+            return $numA <=> $numB;
+        });
+
+        $stmt = $this->db->prepare("UPDATE attendees SET reg_no = :reg_no WHERE id = :id");
+        $i = 1;
+        foreach ($rows as $row) {
+            $padded = str_pad((string)$i, 4, '0', STR_PAD_LEFT);
+            $newRegNo = strtr($padded, $enToBn);
+            $stmt->execute([
+                ':reg_no' => $newRegNo,
+                ':id' => $row['id']
+            ]);
+            $i++;
+        }
+
+        return $this->getAll();
     }
 
     /**

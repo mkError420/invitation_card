@@ -209,9 +209,9 @@ export const api = {
   },
 
   /**
-   * Delete attendee from database (uses POST with action=delete, with fallback)
+   * Delete attendee from database and return re-adjusted attendees list
    */
-  async deleteAttendee(id: string): Promise<boolean> {
+  async deleteAttendee(id: string): Promise<{ success: boolean; data?: Attendee[] }> {
     try {
       const res = await fetch(`${API_BASE}/attendees.php?action=delete&id=${encodeURIComponent(id)}`, {
         method: 'POST',
@@ -220,7 +220,7 @@ export const api = {
       });
       if (res.ok) {
         const json = await res.json();
-        return !!json.success;
+        return { success: !!json.success, data: json.data };
       }
     } catch {
       // Fallback direct port 8000
@@ -232,12 +232,12 @@ export const api = {
           body: JSON.stringify({ id, action: 'delete' }),
         });
         const json = await res.json();
-        return !!json.success;
+        return { success: !!json.success, data: json.data };
       } catch {
-        return false;
+        return { success: false };
       }
     }
-    return false;
+    return { success: false };
   },
 
   /**
