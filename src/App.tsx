@@ -48,22 +48,23 @@ function prepareAttendeesWithBlank(list: Attendee[]): { all: Attendee[]; blankId
 }
 
 export default function App() {
-  // Check if opened via public shareable registration link (/register, /register/, ?register=1, ?form=register, #register)
-  const isPublicRegistration = (() => {
+  // Old share links with query parameters (e.g. ?register=1, ?form=register) are permanently disabled
+  const isOldDisabledLink = (() => {
     if (typeof window === 'undefined') return false;
-    const search = window.location.search;
-    const urlParams = new URLSearchParams(search);
-    const hash = window.location.hash;
-    const pathname = window.location.pathname.replace(/\/+$/, '');
+    const urlParams = new URLSearchParams(window.location.search);
     return (
-      pathname.endsWith('/register') ||
-      pathname === '/register' ||
       urlParams.has('register') ||
       urlParams.get('form') === 'register' ||
-      urlParams.get('mode') === 'register' ||
-      hash === '#register' ||
-      hash === '#/register'
+      urlParams.get('mode') === 'register'
     );
+  })();
+
+  // ONLY https://.../register is active
+  const isPublicRegistration = (() => {
+    if (typeof window === 'undefined') return false;
+    if (isOldDisabledLink) return false;
+    const pathname = window.location.pathname.replace(/\/+$/, '');
+    return pathname.endsWith('/register') || pathname === '/register';
   })();
 
   const [copiedLinkToast, setCopiedLinkToast] = useState(false);
@@ -655,6 +656,23 @@ export default function App() {
       setIsExportingPng(false);
     }
   };
+
+  // If user opens the old disabled link (?register=1), show disabled message (nothing of the site or form is shown)
+  if (isOldDisabledLink) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-slate-400 font-bangla select-none">
+        <div className="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 mb-4 shadow-inner">
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-bold text-slate-300 mb-2">এই লিংকটি নিষ্ক্রিয় করা হয়েছে</h2>
+        <p className="text-sm text-slate-500 max-w-sm">
+          পুরোনো আমন্ত্রণ লিংকটি আর কার্যকর নেই। সঠিক লিংক পেতে অনুগ্রহ করে আয়োজকদের সাথে যোগাযোগ করুন।
+        </p>
+      </div>
+    );
+  }
 
   if (isPublicRegistration) {
     return (
