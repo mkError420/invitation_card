@@ -80,12 +80,13 @@ try {
 
             if ($act === 'delete') {
                 $targetId = $id ?: ($input['id'] ?? null);
+                $targetReg = $_GET['regNo'] ?? ($input['regNo'] ?? null);
                 if (!$targetId) {
                     http_response_code(400);
                     echo json_encode(['success' => false, 'error' => 'Attendee ID is required for deletion'], JSON_UNESCAPED_UNICODE);
                     exit;
                 }
-                $deleted = $model->delete($targetId);
+                $deleted = $model->delete($targetId, $targetReg);
                 $remaining = $model->getAll();
                 echo json_encode(['success' => true, 'deleted' => $deleted, 'data' => $remaining], JSON_UNESCAPED_UNICODE);
                 exit;
@@ -133,17 +134,19 @@ try {
 
         case 'DELETE':
             $targetId = $id;
+            $input = getJsonInput();
             if (!$targetId) {
-                $input = getJsonInput();
                 $targetId = $input['id'] ?? null;
             }
+            $targetReg = $_GET['regNo'] ?? ($input['regNo'] ?? null);
             if (!$targetId) {
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'Attendee ID is required for deletion'], JSON_UNESCAPED_UNICODE);
                 exit;
             }
-            $deleted = $model->delete($targetId);
-            echo json_encode(['success' => true, 'deleted' => $deleted], JSON_UNESCAPED_UNICODE);
+            $deleted = $model->delete($targetId, $targetReg);
+            $remaining = $model->getAll();
+            echo json_encode(['success' => true, 'deleted' => $deleted, 'data' => $remaining], JSON_UNESCAPED_UNICODE);
             break;
 
         default:

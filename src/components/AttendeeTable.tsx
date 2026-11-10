@@ -430,7 +430,11 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
                       <div className="inline-flex items-center gap-1 justify-end">
                         {/* 1. Preview Button */}
                         <button
-                          onClick={() => onSelectAttendee(att.id)}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectAttendee(att.id);
+                          }}
                           className={`p-1.5 rounded-lg transition ${
                             isSelected
                               ? 'text-emerald-400 bg-emerald-500/10'
@@ -443,7 +447,11 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
 
                         {/* 2. Edit Button (Opens Popup for editing) */}
                         <button
-                          onClick={() => setEditingAttendee(att)}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingAttendee(att);
+                          }}
                           className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition"
                           title="সদস্য তথ্য এডিট করুন (পপআপ)"
                         >
@@ -452,7 +460,11 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
 
                         {/* 3. Print Button (Opens Print Popup / Triggers Print) */}
                         <button
-                          onClick={() => setPrintingAttendee(att)}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPrintingAttendee(att);
+                          }}
                           className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition"
                           title="এই সদস্যের কার্ড প্রিন্ট করুন"
                         >
@@ -461,7 +473,11 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
 
                         {/* 4. Delete Button */}
                         <button
-                          onClick={() => onDeleteAttendee(att.id)}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteAttendee(att.id);
+                          }}
                           className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
                           title="ডাটাবেজ ও তালিকা থেকে স্থায়ীভাবে মুছে ফেলুন"
                         >

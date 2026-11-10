@@ -211,12 +211,16 @@ export const api = {
   /**
    * Delete attendee from database and return re-adjusted attendees list
    */
-  async deleteAttendee(id: string): Promise<{ success: boolean; data?: Attendee[] }> {
+  async deleteAttendee(id: string, regNo?: string): Promise<{ success: boolean; data?: Attendee[] }> {
+    const params = new URLSearchParams({ action: 'delete', id });
+    if (regNo) params.append('regNo', regNo);
+    const queryString = params.toString();
+
     try {
-      const res = await fetch(`${API_BASE}/attendees.php?action=delete&id=${encodeURIComponent(id)}`, {
+      const res = await fetch(`${API_BASE}/attendees.php?${queryString}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action: 'delete' }),
+        body: JSON.stringify({ id, regNo, action: 'delete' }),
       });
       if (res.ok) {
         const json = await res.json();
@@ -225,11 +229,11 @@ export const api = {
     } catch {
       // Fallback direct port 8000
       try {
-        const fallbackUrl = `http://127.0.0.1:8000/api/attendees.php?action=delete&id=${encodeURIComponent(id)}`;
+        const fallbackUrl = `http://127.0.0.1:8000/api/attendees.php?${queryString}`;
         const res = await fetch(fallbackUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, action: 'delete' }),
+          body: JSON.stringify({ id, regNo, action: 'delete' }),
         });
         const json = await res.json();
         return { success: !!json.success, data: json.data };

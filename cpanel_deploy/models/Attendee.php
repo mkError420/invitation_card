@@ -251,13 +251,14 @@ class AttendeeModel {
     }
 
     /**
-     * Delete attendee by ID and re-adjust remaining registration numbers sequentially (০০০১, ০০০২...)
+     * Delete attendee by ID or regNo and re-adjust remaining registration numbers sequentially (০০০১, ০০০২...)
      */
-    public function delete(string $id): bool {
+    public function delete(string $id, ?string $regNo = null): bool {
+        $targetReg = $regNo ?: $id;
         // Also remove uploaded photo if it was a local server upload
         try {
-            $stmt = $this->db->prepare("SELECT photo_url FROM attendees WHERE id = :id OR reg_no = :id2 LIMIT 1");
-            $stmt->execute([':id' => $id, ':id2' => $id]);
+            $stmt = $this->db->prepare("SELECT photo_url FROM attendees WHERE id = :id OR id = :regNo OR reg_no = :id2 OR reg_no = :regNo2 LIMIT 1");
+            $stmt->execute([':id' => $id, ':regNo' => $targetReg, ':id2' => $id, ':regNo2' => $targetReg]);
             $row = $stmt->fetch();
             if ($row && !empty($row['photo_url'])) {
                 $photo = $row['photo_url'];
@@ -274,8 +275,8 @@ class AttendeeModel {
             // ignore file cleanup error
         }
 
-        $stmt = $this->db->prepare("DELETE FROM attendees WHERE id = :id OR reg_no = :id2");
-        $stmt->execute([':id' => $id, ':id2' => $id]);
+        $stmt = $this->db->prepare("DELETE FROM attendees WHERE id = :id OR id = :regNo OR reg_no = :id2 OR reg_no = :regNo2");
+        $stmt->execute([':id' => $id, ':regNo' => $targetReg, ':id2' => $id, ':regNo2' => $targetReg]);
         $deleted = $stmt->rowCount() > 0;
 
         if ($deleted) {

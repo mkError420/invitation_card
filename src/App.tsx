@@ -374,23 +374,11 @@ export default function App() {
       console.warn('LocalStorage save attendees failed:', e);
     }
 
-    // 6. Delete from backend database and re-sequence in MySQL / SQLite
+    // 6. Delete from backend database and ensure database matches the resequenced list
     if (backendStatus.online) {
       try {
-        const deleteRes = await api.deleteAttendee(id);
-        if (deleteRes.data && Array.isArray(deleteRes.data)) {
-          // If server returned updated list, sync with server's resequenced list
-          const serverPrep = prepareAttendeesWithBlank(deleteRes.data);
-          setAttendees(serverPrep.all);
-          try {
-            localStorage.setItem('somaborton_attendees_v1', JSON.stringify(deleteRes.data));
-          } catch {
-            // ignore
-          }
-        } else if (resequenced.length > 0) {
-          // Fallback: batch update the re-sequenced list to ensure IDs match in database
-          await api.batchImport(resequenced, 'replace');
-        }
+        await api.deleteAttendee(id, target?.regNo);
+        await api.batchImport(resequenced, 'replace');
       } catch (err) {
         console.warn('Backend delete / resequence attendee failed:', err);
       }
