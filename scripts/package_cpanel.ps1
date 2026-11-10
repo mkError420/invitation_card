@@ -43,6 +43,10 @@ $htaccessContent = @"
 # InfinityFree & Apache Safe .htaccess (No BOM, No Options keyword)
 RewriteEngine On
 
+# Permanently disable old ?register= query link (shows nothing / 403)
+RewriteCond %{QUERY_STRING} register [NC]
+RewriteRule ^ - [F,L]
+
 # Clean API routing to PHP endpoints
 RewriteRule ^api/attendees/?$ api/attendees.php [L,QSA]
 RewriteRule ^api/config/?$ api/config.php [L,QSA]

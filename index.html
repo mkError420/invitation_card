@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ইনভাইটেশন কার্ড ও আইডি জেনারেটর</title>
+    <script>
+      (function() {
+        var s = (window.location.search || '').toLowerCase();
+        if (s.indexOf('register') !== -1) {
+          window.stop && window.stop();
+          document.documentElement.innerHTML = '';
+        }
+      })();
+    </script>
     <meta name="description" content="হুবহু প্রিভিউ, ডাইনামিক এডিটিং, CSV বাল্ক জেনারেশন এবং প্রতি A4 পেজে ৪টি কার্ড প্রিন্ট ও সরাসরি PDF ডাউনলোড সুবিধা।" />
     <meta property="og:title" content="ইনভাইটেশন কার্ড ও আইডি জেনারেটর" />
     <meta property="og:description" content="হুবহু প্রিভিউ, ডাইনামিক এডিটিং, CSV বাল্ক জেনারেশন এবং প্রতি A4 পেজে ৪টি কার্ড প্রিন্ট ও সরাসরি PDF ডাউনলোড সুবিধা।" />
