@@ -139,7 +139,7 @@ export const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({
 
           {/* Slogan */}
           <p className="text-emerald-300 font-medium text-sm sm:text-base mb-4 leading-relaxed">
-            {config.slogan1 || 'স্মৃতির আলো...বন্ধুত্বের উচ্ছ্বাসে...'}
+            {config.slogan1 || 'স্মৃতির আবেশে...বন্ধুত্বের উচ্ছ্বাসে...'}
             <br />
             <span className="text-emerald-400 font-bold">{config.slogan2 || 'আমরা আবার এক সাথে'}</span>
           </p>

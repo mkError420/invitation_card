@@ -403,9 +403,29 @@ export const DynamicEditor: React.FC<DynamicEditorProps> = ({
             </div>
 
             <div className="p-3 bg-emerald-950/30 border border-emerald-800/40 rounded-xl text-xs text-emerald-300 space-y-1">
-              <p className="font-bold">✓ মূল গ্রাফিক্স ব্যানার সংরক্ষিত:</p>
+              <p className="font-bold">✓ মূল গ্রাফিক্স ব্যানার সক্রিয়:</p>
               <p className="text-slate-300">
-                শীর্ষ ব্যানার ("এসএসসি ৮৮ ব্যাচের বন্ধুদের মিলনমেলা", "বাহের ডাক", "স্মৃতির আলোঃ...") আপনার দেওয়া মূল গ্রাফিক্স ডিজাইনে প্রদর্শিত হচ্ছে।
+                কার্ডের শীর্ষ স্লোগান "স্মৃতির আবেশে" এখন সম্পূর্ণ ফাংশনাল। প্রয়োজনে নিচের ঘর থেকে স্লোগান পরিবর্তন করতে পারবেন।
+              </p>
+            </div>
+
+            {/* Slogan 1 Input */}
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1 flex items-center gap-1.5">
+                <Type className="w-3.5 h-3.5 text-emerald-400" />
+                <span>কার্ডের মূল স্লোগান (স্লোগান ১)</span>
+              </label>
+              <input
+                type="text"
+                value={config.slogan1}
+                onChange={(e) =>
+                  onUpdateConfig({ ...config, slogan1: e.target.value })
+                }
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:border-emerald-500 focus:outline-none"
+                placeholder="স্মৃতির আবেশে...বন্ধুত্বের উচ্ছ্বাসে..."
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                কার্ডের উপরের ব্যানারে প্রদর্শিত মূল স্লোগান ("স্মৃতির আবেশে...বন্ধুত্বের উচ্ছ্বাসে...")
               </p>
             </div>
 

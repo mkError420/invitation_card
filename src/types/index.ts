@@ -33,7 +33,7 @@ export interface EventConfig {
 export const DEFAULT_EVENT_CONFIG: EventConfig = {
   headerArcTitle: "এসএসসি ৮৮ ব্যাচের বন্ধুদের মিলনমেলা",
   mainTitle: "বাহের ডাক",
-  slogan1: "স্মৃতির আলো......বন্ধুত্বের উচ্ছ্বাসে.....",
+  slogan1: "স্মৃতির আবেশে......বন্ধুত্বের উচ্ছ্বাসে.....",
   slogan2: "আমরা আবার এক সাথে",
   labelReg: "নিবন্ধন নং",
   labelName: "",

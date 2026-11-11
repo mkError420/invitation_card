@@ -89,6 +89,8 @@ export async function renderCardToCanvas(
         document.fonts.load('bold 82px "SolaimanLipi"'),
         document.fonts.load('bold 39px "Kalpurush"'),
         document.fonts.load('bold 39px "SolaimanLipi"'),
+        document.fonts.load('bold 28px "Kalpurush"'),
+        document.fonts.load('bold 28px "SolaimanLipi"'),
         document.fonts.ready,
       ]);
     } catch {
@@ -116,6 +118,23 @@ export async function renderCardToCanvas(
 
   // 2. Draw template graphic
   ctx.drawImage(templateImg, 0, 0, width, height);
+
+  // 2b. Slogan 1 Overlay ("স্মৃতির আবেশে...বন্ধুত্বের উচ্ছ্বাসে...")
+  // The background behind slogan 1 is pure white (#ffffff)
+  const slogan1Text = (config.slogan1 || 'স্মৃতির আবেশে...বন্ধুত্বের উচ্ছ্বাসে...')
+    .replace('স্মৃতির আলো', 'স্মৃতির আবেশে');
+  
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(285, 280, 480, 58);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#9a0c92';
+  const sloganFont = getCanvasFieldsFont(config.fontChoice);
+  ctx.font = `bold 28px ${sloganFont}`;
+  ctx.fillText(slogan1Text, 526, 310);
+  ctx.restore();
 
   // 3. Attendee Profile Photo (Circle in upper left)
   const photoScale = (config.photoScale || 98) / 100;

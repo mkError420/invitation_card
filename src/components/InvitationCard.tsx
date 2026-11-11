@@ -82,6 +82,35 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
         loading="eager"
       />
 
+      {/* Slogan 1 Banner Overlay ("স্মৃতির আবেশে...বন্ধুত্বের উচ্ছ্বাসে...") */}
+      {(() => {
+        const sloganText = (config.slogan1 || 'স্মৃতির আবেশে...বন্ধুত্বের উচ্ছ্বাসে...')
+          .replace('স্মৃতির আলো', 'স্মৃতির আবেশে');
+        return (
+          <div
+            className="absolute z-20 flex items-center justify-center bg-white pointer-events-none"
+            style={{
+              left: '50.67%',
+              top: '20.46%',
+              transform: 'translate(-50%, -50%)',
+              width: '45.5%',
+              height: '3.75%',
+            }}
+          >
+            <span
+              className="font-bold text-[#9a0c92] text-center truncate whitespace-nowrap [font-size:clamp(10px,2.65cqi,27px)]"
+              style={{
+                fontFamily: getFieldsFontFamily(config.fontChoice),
+                lineHeight: 1,
+                letterSpacing: '0.2px',
+              }}
+            >
+              {sloganText}
+            </span>
+          </div>
+        );
+      })()}
+
       {/* Lanyard Hole Guide in Print Mode if enabled */}
       {config.showLanyardSlot && isPrintMode && (
         <div
