@@ -185,6 +185,7 @@ export default function App() {
             if (remoteConfig && remoteConfig.mainTitle) {
               setConfig({
                 ...remoteConfig,
+                slogan1: (remoteConfig.slogan1 || DEFAULT_EVENT_CONFIG.slogan1).replace(/স্মৃতির আলো/g, 'স্মৃতির আবেশে'),
                 fontChoice: remoteConfig.fontChoice || 'solaiman_kalpurush',
               });
             }

@@ -9,10 +9,11 @@ class EventConfigModel {
     }
 
     public static function formatRow(array $row): array {
+        $slogan1 = str_replace('স্মৃতির আলো', 'স্মৃতির আবেশে', (string)($row['slogan1'] ?? ''));
         return [
             'headerArcTitle' => (string)($row['header_arc_title'] ?? ''),
             'mainTitle' => (string)($row['main_title'] ?? ''),
-            'slogan1' => (string)($row['slogan1'] ?? ''),
+            'slogan1' => $slogan1,
             'slogan2' => (string)($row['slogan2'] ?? ''),
             'labelReg' => (string)($row['label_reg'] ?? 'নিবন্ধন নং'),
             'labelName' => (string)($row['label_name'] ?? ''),
@@ -35,6 +36,13 @@ class EventConfigModel {
         $stmt = $this->db->query("SELECT * FROM event_config WHERE id = 1 LIMIT 1");
         $row = $stmt->fetch();
         if ($row) {
+            if (isset($row['slogan1']) && str_contains($row['slogan1'], 'স্মৃতির আলো')) {
+                try {
+                    $this->db->exec("UPDATE event_config SET slogan1 = REPLACE(slogan1, 'স্মৃতির আলো', 'স্মৃতির আবেশে') WHERE id = 1");
+                } catch (Exception $e) {
+                    // ignore
+                }
+            }
             return self::formatRow($row);
         }
 
@@ -50,7 +58,7 @@ class EventConfigModel {
 
         $headerArcTitle = $data['headerArcTitle'] ?? $data['header_arc_title'] ?? $current['headerArcTitle'];
         $mainTitle = $data['mainTitle'] ?? $data['main_title'] ?? $current['mainTitle'];
-        $slogan1 = $data['slogan1'] ?? $current['slogan1'];
+        $slogan1 = str_replace('স্মৃতির আলো', 'স্মৃতির আবেশে', $data['slogan1'] ?? $current['slogan1']);
         $slogan2 = $data['slogan2'] ?? $current['slogan2'];
         $labelReg = $data['labelReg'] ?? $data['label_reg'] ?? $current['labelReg'];
         $labelName = $data['labelName'] ?? $data['label_name'] ?? $current['labelName'];
