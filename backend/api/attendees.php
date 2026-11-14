@@ -42,7 +42,7 @@ try {
             // Check if action specified in body or query
             $act = $action ?: ($input['action'] ?? null);
 
-            if ($act === 'save' || $act === 'upsert' || $act === 'register' || $act === 'public_register') {
+            if ($act === 'save' || $act === 'upsert' || $act === 'register' || $act === 'public_register' || $act === 'public_save') {
                 $saved = $model->save($input);
                 http_response_code(200);
                 echo json_encode(['success' => true, 'data' => $saved], JSON_UNESCAPED_UNICODE);

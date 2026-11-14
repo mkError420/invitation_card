@@ -14,6 +14,32 @@ const isLocalhost = typeof window !== 'undefined' &&
 
 const API_BASE = getBaseUrl();
 
+async function parseJsonResponse<T = any>(res: Response, fallbackError = 'সার্ভার থেকে ত্রুটিপূর্ণ উত্তর এসেছে'): Promise<T> {
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    if (res.status === 403) {
+      throw new Error('সার্ভারে প্রবেশাধিকার সীমিত (403 Forbidden)। সার্ভার রুলস বা পারমিশন চেক করুন।');
+    }
+    if (res.status === 404) {
+      throw new Error('সার্ভার রুট পাওয়া যায়নি (404 Not Found)।');
+    }
+    if (res.status >= 500) {
+      throw new Error(`সার্ভার ইন্টারনাল এরর (${res.status})।`);
+    }
+    const cleanSnippet = text.replace(/<[^>]+>/g, '').trim().slice(0, 100);
+    throw new Error(cleanSnippet || fallbackError);
+  }
+
+  if (!res.ok || json?.success === false) {
+    throw new Error(json?.error || fallbackError);
+  }
+
+  return json;
+}
+
 export interface BackendStatus {
   online: boolean;
   driver?: string;
@@ -110,14 +136,31 @@ export const api = {
     phone?: string;
     photoUrl?: string;
   }): Promise<Attendee> {
-    const res = await fetch(`${API_BASE}/attendees.php?action=public_register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.error || 'নিবন্ধন সম্পন্ন করা যায়নি');
-    return json.data;
+    const payload = { ...data, action: 'save' };
+    try {
+      const res = await fetch(`${API_BASE}/attendees.php?action=save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await parseJsonResponse(res, 'নিবন্ধন সম্পন্ন করা যায়নি');
+      return json.data;
+    } catch (err: any) {
+      if (isLocalhost) {
+        try {
+          const directRes = await fetch('http://127.0.0.1:8000/api/attendees.php?action=save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const json = await parseJsonResponse(directRes, 'নিবন্ধন সম্পন্ন করা যায়নি');
+          return json.data;
+        } catch {
+          // ignore
+        }
+      }
+      throw err;
+    }
   },
 
   /**
@@ -312,8 +355,7 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: fileOrBase64, attendeeId }),
       });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || 'Failed to upload image');
+      const json = await parseJsonResponse(res, 'ছবি আপলোড করা যায়নি');
       return json.url;
     } else {
       // Multipart File
@@ -326,8 +368,7 @@ export const api = {
         method: 'POST',
         body: formData,
       });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || 'Failed to upload photo');
+      const json = await parseJsonResponse(res, 'ছবি আপলোড করা যায়নি');
       return json.url;
     }
   },

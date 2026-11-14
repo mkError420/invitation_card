@@ -1,21 +1,22 @@
 # InfinityFree & Apache Safe .htaccess (No BOM, No Options keyword)
 RewriteEngine On
 
-# Permanently disable old ?register= query link (shows nothing / 403)
-RewriteCond %{QUERY_STRING} register [NC]
-RewriteRule ^ - [F,L]
-
-# Clean API routing to PHP endpoints
+# 1. Clean API routing to PHP endpoints (Always prioritize API)
 RewriteRule ^api/attendees/?$ api/attendees.php [L,QSA]
 RewriteRule ^api/config/?$ api/config.php [L,QSA]
 RewriteRule ^api/upload/?$ api/upload.php [L,QSA]
 RewriteRule ^api/status/?$ api/status.php [L,QSA]
 RewriteRule ^api/?$ api/index.php [L,QSA]
 
-# Allow direct access to existing files and folders (JS, CSS, images, fonts, PHP scripts, uploads)
+# 2. Permanently disable old ?register= query link on root (exclude API)
+RewriteCond %{REQUEST_URI} !^/api [NC]
+RewriteCond %{QUERY_STRING} (^|&)register(=|&|$) [NC]
+RewriteRule ^ - [F,L]
+
+# 3. Allow direct access to existing files and folders (JS, CSS, images, fonts, PHP scripts, uploads)
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
-# React SPA Fallback to index.html
+# 4. React SPA Fallback to index.html
 RewriteRule ^ index.html [L]
