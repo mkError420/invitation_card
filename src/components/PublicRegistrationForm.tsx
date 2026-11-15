@@ -72,8 +72,8 @@ export const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({
     }
 
     const guestCount = Number(toEnglishNumber(guests));
-    if (!Number.isInteger(guestCount) || guestCount < 1) {
-      setErrorMessage('অনুগ্রহ করে মোট উপস্থিতির সংখ্যা ১ বা তার বেশি পূরণ করো।');
+    if (guests.trim() === '' || !Number.isInteger(guestCount) || guestCount < 0) {
+      setErrorMessage('অনুগ্রহ করে মোট উপস্থিতির সংখ্যা ০ বা তার বেশি পূরণ করো।');
       return;
     }
 
