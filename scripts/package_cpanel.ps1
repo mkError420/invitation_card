@@ -29,6 +29,11 @@ Copy-Item -Recurse -Force "$projectRoot\backend\api" "$deployDir\api"
 Copy-Item -Recurse -Force "$projectRoot\backend\config" "$deployDir\config"
 Copy-Item -Recurse -Force "$projectRoot\backend\models" "$deployDir\models"
 
+# Include the schema at the path expected by the PHP database bootstrap
+$databaseDir = Join-Path $deployDir "database"
+New-Item -ItemType Directory -Force -Path $databaseDir | Out-Null
+Copy-Item -Force "$projectRoot\backend\database\schema.sql" "$databaseDir\schema.sql"
+
 # Create Uploads directory
 $uploadsDir = Join-Path $deployDir "uploads"
 New-Item -ItemType Directory -Force -Path $uploadsDir | Out-Null
@@ -49,6 +54,9 @@ RewriteRule ^api/config/?$ api/config.php [L,QSA]
 RewriteRule ^api/upload/?$ api/upload.php [L,QSA]
 RewriteRule ^api/status/?$ api/status.php [L,QSA]
 RewriteRule ^api/?$ api/index.php [L,QSA]
+
+# Keep database files private while allowing PHP to access them internally
+RewriteRule ^database(/|$) - [F,L]
 
 # 2. Permanently disable old ?register= query link on root (exclude API)
 RewriteCond %{REQUEST_URI} !^/api [NC]

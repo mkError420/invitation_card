@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Attendee, EventConfig, DEFAULT_EVENT_CONFIG } from '../types';
 import { api } from '../services/api';
+import { toBengaliNumber, toEnglishNumber } from '../utils/bengaliNumerals';
 
 interface PublicRegistrationFormProps {
   config?: EventConfig;
@@ -29,6 +30,7 @@ export const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({
   const [school, setSchool] = useState('');
   const [district, setDistrict] = useState('');
   const [guests, setGuests] = useState('১');
+  const [customGuestsSelected, setCustomGuestsSelected] = useState(false);
   const [phone, setPhone] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
 
@@ -66,6 +68,12 @@ export const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({
 
     if (!name.trim()) {
       setErrorMessage('অনুগ্রহ করে তোমার পুরো নাম পূরণ করো।');
+      return;
+    }
+
+    const guestCount = Number(toEnglishNumber(guests));
+    if (!Number.isInteger(guestCount) || guestCount < 1) {
+      setErrorMessage('অনুগ্রহ করে মোট উপস্থিতির সংখ্যা ১ বা তার বেশি পূরণ করো।');
       return;
     }
 
@@ -111,6 +119,7 @@ export const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({
     setSchool('');
     setDistrict('');
     setGuests('১');
+    setCustomGuestsSelected(false);
     setPhone('');
     setPhotoUrl('');
     setSubmittedAttendee(null);
@@ -369,8 +378,11 @@ export const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({
                   <button
                     key={val}
                     type="button"
-                    onClick={() => setGuests(val)}
-                    className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-bold border transition ${guests === val
+                    onClick={() => {
+                      setGuests(val);
+                      setCustomGuestsSelected(false);
+                    }}
+                    className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-bold border transition ${!customGuestsSelected && guests === val
                       ? 'bg-emerald-600 border-emerald-500 text-white shadow-sm'
                       : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
                       }`}
@@ -378,7 +390,40 @@ export const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({
                     {val} জন
                   </button>
                 ))}
+                <button
+                  type="button"
+                  aria-pressed={customGuestsSelected}
+                  onClick={() => {
+                    setCustomGuestsSelected(true);
+                    setGuests('');
+                  }}
+                  className={`col-span-4 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold border transition ${customGuestsSelected
+                    ? 'bg-emerald-600 border-emerald-500 text-white shadow-sm'
+                    : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                    }`}
+                >
+                  অন্যান্য
+                </button>
               </div>
+              {customGuestsSelected && (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9০-৯]+"
+                    required
+                    autoFocus
+                    value={guests}
+                    onChange={(e) => {
+                      const digits = toEnglishNumber(e.target.value).replace(/\D/g, '');
+                      setGuests(toBengaliNumber(digits));
+                    }}
+                    aria-label="তুমি সহ মোট উপস্থিতির সংখ্যা"
+                    placeholder="মোট উপস্থিতির সংখ্যা লিখুন"
+                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Phone Number Field */}

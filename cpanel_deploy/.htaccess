@@ -8,6 +8,9 @@ RewriteRule ^api/upload/?$ api/upload.php [L,QSA]
 RewriteRule ^api/status/?$ api/status.php [L,QSA]
 RewriteRule ^api/?$ api/index.php [L,QSA]
 
+# Keep database files private while allowing PHP to access them internally
+RewriteRule ^database(/|$) - [F,L]
+
 # 2. Permanently disable old ?register= query link on root (exclude API)
 RewriteCond %{REQUEST_URI} !^/api [NC]
 RewriteCond %{QUERY_STRING} (^|&)register(=|&|$) [NC]
