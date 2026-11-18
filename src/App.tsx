@@ -387,6 +387,39 @@ export default function App() {
     }
   };
 
+  const handleReorderAttendees = async (newOrderedList: Attendee[]) => {
+    // 1. Re-adjust the registration numbers (IDs) sequentially (০০০১, ০০০২, ০০০৩...)
+    const resequenced: Attendee[] = newOrderedList.map((member, index) => ({
+      ...member,
+      regNo: formatRegNo(index + 1),
+    }));
+
+    // 2. Prepare attendees list with next blank card (whose regNo will automatically be next in sequence)
+    const prep = prepareAttendeesWithBlank(resequenced);
+    setAttendees(prep.all);
+
+    // 3. Update localStorage with re-adjusted list
+    try {
+      localStorage.setItem('somaborton_attendees_v1', JSON.stringify(resequenced));
+    } catch (e) {
+      console.warn('LocalStorage save attendees failed:', e);
+    }
+
+    // 4. Update backend database
+    if (backendStatus.online) {
+      try {
+        await api.reorderAttendees(resequenced);
+      } catch (err) {
+        console.warn('Backend reorder attendee failed, falling back to batchImport:', err);
+        try {
+          await api.batchImport(resequenced, 'replace');
+        } catch (fallbackErr) {
+          console.warn('Backend batchImport fallback failed:', fallbackErr);
+        }
+      }
+    }
+  };
+
   const handlePhotoUpload = async (attendeeId: string, photoUrl: string) => {
     setAttendees((prev) =>
       prev.map((a) => (a.id === attendeeId ? { ...a, photoUrl } : a))
@@ -1027,6 +1060,7 @@ export default function App() {
               onAddAttendee={handleAddAttendee}
               onUpdateAttendee={handleUpdateAttendee}
               onDeleteAttendee={handleDeleteAttendee}
+              onReorderAttendees={handleReorderAttendees}
               onPhotoUpload={handlePhotoUpload}
               onBulkPrint={handleBrowserPrint}
               onPrintAttendee={handlePrintSingleAttendee}

@@ -49,7 +49,19 @@ class AttendeeModel {
         }
 
         $rows = $stmt->fetchAll();
-        return array_map([self::class, 'formatRow'], $rows);
+        $result = array_map([self::class, 'formatRow'], $rows);
+
+        $bnToEn = [
+            '০' => '0', '১' => '1', '২' => '2', '৩' => '3', '৪' => '4',
+            '৫' => '5', '৬' => '6', '৭' => '7', '৮' => '8', '৯' => '9'
+        ];
+        usort($result, function ($a, $b) use ($bnToEn) {
+            $numA = (int)preg_replace('/\D/', '', strtr((string)($a['regNo'] ?? ''), $bnToEn));
+            $numB = (int)preg_replace('/\D/', '', strtr((string)($b['regNo'] ?? ''), $bnToEn));
+            return $numA <=> $numB;
+        });
+
+        return $result;
     }
 
     /**
@@ -63,11 +75,107 @@ class AttendeeModel {
     }
 
     /**
+     * Calculate next sequential registration number in Bengali digits (First In, First ID: ০০০১, ০০০২...)
+     */
+    public function getNextRegNo(): string {
+        $stmt = $this->db->query("SELECT reg_no FROM attendees");
+        $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        $bnToEn = [
+            '০' => '0', '১' => '1', '২' => '2', '৩' => '3', '৪' => '4',
+            '৫' => '5', '৬' => '6', '৭' => '7', '৮' => '8', '৯' => '9'
+        ];
+        $enToBn = [
+            '0' => '০', '1' => '১', '2' => '২', '3' => '৩', '4' => '৪',
+            '5' => '৫', '6' => '৬', '7' => '৭', '8' => '৮', '9' => '৯'
+        ];
+
+        $maxNum = 0;
+        foreach ($rows as $reg) {
+            $digits = preg_replace('/\D/', '', strtr((string)$reg, $bnToEn));
+            if ($digits !== '') {
+                $val = (int)$digits;
+                if ($val > $maxNum) {
+                    $maxNum = $val;
+                }
+            }
+        }
+        $nextNum = $maxNum + 1;
+        $padded = str_pad((string)$nextNum, 4, '0', STR_PAD_LEFT);
+        return strtr($padded, $enToBn);
+    }
+
+    /**
+     * Upsert / Save attendee (create if not found, update if exists)
+     */
+    public function save(array $data): array {
+        $id = !empty($data['id']) ? (string)$data['id'] : 'att-' . round(microtime(true) * 1000);
+        $data['id'] = $id;
+
+        $regNo = trim((string)($data['regNo'] ?? $data['reg_no'] ?? ''));
+        if (empty($regNo)) {
+            $regNo = $this->getNextRegNo();
+            $data['regNo'] = $regNo;
+        }
+
+        $driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'mysql') {
+            $name = trim((string)($data['name'] ?? ''));
+            $school = (string)($data['school'] ?? '');
+            $district = (string)($data['district'] ?? '');
+            $guests = (string)($data['guests'] ?? '১');
+            $phone = (string)($data['phone'] ?? '');
+            $photoUrl = (string)($data['photoUrl'] ?? $data['photo_url'] ?? '');
+
+            if (empty($name)) {
+                throw new InvalidArgumentException('Attendee name is required');
+            }
+
+            $stmt = $this->db->prepare("
+                INSERT INTO attendees (id, reg_no, name, school, district, guests, phone, photo_url, created_at, updated_at)
+                VALUES (:id, :reg_no, :name, :school, :district, :guests, :phone, :photo_url, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ON DUPLICATE KEY UPDATE
+                    reg_no = VALUES(reg_no),
+                    name = VALUES(name),
+                    school = VALUES(school),
+                    district = VALUES(district),
+                    guests = VALUES(guests),
+                    phone = VALUES(phone),
+                    photo_url = VALUES(photo_url),
+                    updated_at = CURRENT_TIMESTAMP
+            ");
+
+            $stmt->execute([
+                ':id' => $id,
+                ':reg_no' => $regNo,
+                ':name' => $name,
+                ':school' => $school,
+                ':district' => $district,
+                ':guests' => $guests,
+                ':phone' => $phone,
+                ':photo_url' => $photoUrl,
+            ]);
+
+            return $this->getById($id) ?? [];
+        }
+
+        // SQLite / generic fallback
+        if ($this->getById($id)) {
+            $updated = $this->update($id, $data);
+            if ($updated) return $updated;
+        }
+        return $this->create($data);
+    }
+
+    /**
      * Create a new attendee
      */
     public function create(array $data): array {
         $id = !empty($data['id']) ? (string)$data['id'] : 'att-' . round(microtime(true) * 1000);
-        $regNo = (string)($data['regNo'] ?? $data['reg_no'] ?? '');
+        $regNo = trim((string)($data['regNo'] ?? $data['reg_no'] ?? ''));
+        if (empty($regNo)) {
+            $regNo = $this->getNextRegNo();
+        }
         $name = trim((string)($data['name'] ?? ''));
         $school = (string)($data['school'] ?? '');
         $district = (string)($data['district'] ?? '');
@@ -143,13 +251,14 @@ class AttendeeModel {
     }
 
     /**
-     * Delete attendee by ID
+     * Delete attendee by ID or regNo and re-adjust remaining registration numbers sequentially (০০০১, ০০০২...)
      */
-    public function delete(string $id): bool {
+    public function delete(string $id, ?string $regNo = null): bool {
+        $targetReg = $regNo ?: $id;
         // Also remove uploaded photo if it was a local server upload
         try {
-            $stmt = $this->db->prepare("SELECT photo_url FROM attendees WHERE id = :id OR reg_no = :id2 LIMIT 1");
-            $stmt->execute([':id' => $id, ':id2' => $id]);
+            $stmt = $this->db->prepare("SELECT photo_url FROM attendees WHERE id = :id OR id = :regNo OR reg_no = :id2 OR reg_no = :regNo2 LIMIT 1");
+            $stmt->execute([':id' => $id, ':regNo' => $targetReg, ':id2' => $id, ':regNo2' => $targetReg]);
             $row = $stmt->fetch();
             if ($row && !empty($row['photo_url'])) {
                 $photo = $row['photo_url'];
@@ -166,9 +275,80 @@ class AttendeeModel {
             // ignore file cleanup error
         }
 
-        $stmt = $this->db->prepare("DELETE FROM attendees WHERE id = :id OR reg_no = :id2");
-        $stmt->execute([':id' => $id, ':id2' => $id]);
-        return $stmt->rowCount() > 0;
+        $stmt = $this->db->prepare("DELETE FROM attendees WHERE id = :id OR id = :regNo OR reg_no = :id2 OR reg_no = :regNo2");
+        $stmt->execute([':id' => $id, ':regNo' => $targetReg, ':id2' => $id, ':regNo2' => $targetReg]);
+        $deleted = $stmt->rowCount() > 0;
+
+        if ($deleted) {
+            $this->resequenceRegNumbers();
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * Re-sequence all existing attendees' registration numbers sequentially: ০০০১, ০০০২, ০০০৩...
+     */
+    public function resequenceRegNumbers(): array {
+        $rows = $this->getAll();
+        if (empty($rows)) {
+            return [];
+        }
+
+        $bnToEn = [
+            '০' => '0', '১' => '1', '২' => '2', '৩' => '3', '৪' => '4',
+            '৫' => '5', '৬' => '6', '৭' => '7', '৮' => '8', '৯' => '9'
+        ];
+        $enToBn = [
+            '0' => '০', '1' => '১', '2' => '২', '3' => '৩', '4' => '৪',
+            '5' => '৫', '6' => '৬', '7' => '৭', '8' => '৮', '9' => '৯'
+        ];
+
+        // Sort rows by numerical regNo to maintain relative sequence
+        usort($rows, function ($a, $b) use ($bnToEn) {
+            $numA = (int)preg_replace('/\D/', '', strtr((string)($a['regNo'] ?? ''), $bnToEn));
+            $numB = (int)preg_replace('/\D/', '', strtr((string)($b['regNo'] ?? ''), $bnToEn));
+            return $numA <=> $numB;
+        });
+
+        $stmt = $this->db->prepare("UPDATE attendees SET reg_no = :reg_no WHERE id = :id");
+        $i = 1;
+        foreach ($rows as $row) {
+            $padded = str_pad((string)$i, 4, '0', STR_PAD_LEFT);
+            $newRegNo = strtr($padded, $enToBn);
+            $stmt->execute([
+                ':reg_no' => $newRegNo,
+                ':id' => $row['id']
+            ]);
+            $i++;
+        }
+
+        return $this->getAll();
+    }
+
+    /**
+     * Reorder attendees by updating their reg_no and sequence
+     */
+    public function reorder(array $attendees): array {
+        $this->db->beginTransaction();
+        try {
+            $stmt = $this->db->prepare("UPDATE attendees SET reg_no = :reg_no, updated_at = CURRENT_TIMESTAMP WHERE id = :id");
+            foreach ($attendees as $att) {
+                $id = !empty($att['id']) ? (string)$att['id'] : null;
+                $regNo = (string)($att['regNo'] ?? $att['reg_no'] ?? '');
+                if ($id && $regNo) {
+                    $stmt->execute([
+                        ':reg_no' => $regNo,
+                        ':id' => $id,
+                    ]);
+                }
+            }
+            $this->db->commit();
+            return $this->getAll();
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
     }
 
     /**

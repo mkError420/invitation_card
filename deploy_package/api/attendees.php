@@ -42,6 +42,30 @@ try {
             // Check if action specified in body or query
             $act = $action ?: ($input['action'] ?? null);
 
+            if ($act === 'save' || $act === 'upsert' || $act === 'register' || $act === 'public_register' || $act === 'public_save') {
+                $saved = $model->save($input);
+                http_response_code(200);
+                echo json_encode(['success' => true, 'data' => $saved], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
+            if ($act === 'reorder') {
+                $items = $input['attendees'] ?? [];
+                if (!is_array($items)) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Invalid attendees list format'], JSON_UNESCAPED_UNICODE);
+                    exit;
+                }
+                $result = $model->reorder($items);
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Attendees reordered successfully',
+                    'count' => count($result),
+                    'data' => $result
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
             if ($act === 'batch' || $act === 'import') {
                 $items = $input['attendees'] ?? [];
                 $mode = ($input['mode'] ?? 'append') === 'replace' ? 'replace' : 'append';
@@ -73,13 +97,15 @@ try {
 
             if ($act === 'delete') {
                 $targetId = $id ?: ($input['id'] ?? null);
+                $targetReg = $_GET['regNo'] ?? ($input['regNo'] ?? null);
                 if (!$targetId) {
                     http_response_code(400);
                     echo json_encode(['success' => false, 'error' => 'Attendee ID is required for deletion'], JSON_UNESCAPED_UNICODE);
                     exit;
                 }
-                $deleted = $model->delete($targetId);
-                echo json_encode(['success' => true, 'deleted' => $deleted], JSON_UNESCAPED_UNICODE);
+                $deleted = $model->delete($targetId, $targetReg);
+                $remaining = $model->getAll();
+                echo json_encode(['success' => true, 'deleted' => $deleted, 'data' => $remaining], JSON_UNESCAPED_UNICODE);
                 exit;
             }
 
@@ -125,17 +151,19 @@ try {
 
         case 'DELETE':
             $targetId = $id;
+            $input = getJsonInput();
             if (!$targetId) {
-                $input = getJsonInput();
                 $targetId = $input['id'] ?? null;
             }
+            $targetReg = $_GET['regNo'] ?? ($input['regNo'] ?? null);
             if (!$targetId) {
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'Attendee ID is required for deletion'], JSON_UNESCAPED_UNICODE);
                 exit;
             }
-            $deleted = $model->delete($targetId);
-            echo json_encode(['success' => true, 'deleted' => $deleted], JSON_UNESCAPED_UNICODE);
+            $deleted = $model->delete($targetId, $targetReg);
+            $remaining = $model->getAll();
+            echo json_encode(['success' => true, 'deleted' => $deleted, 'data' => $remaining], JSON_UNESCAPED_UNICODE);
             break;
 
         default:

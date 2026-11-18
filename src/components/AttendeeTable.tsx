@@ -11,9 +11,15 @@ import {
   Pencil,
   Share2,
   ExternalLink,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown,
+  GripVertical,
+  Info,
+  X,
 } from 'lucide-react';
 import { Attendee, EventConfig, DEFAULT_EVENT_CONFIG } from '../types';
-import { getNextRegNo, formatRegNo } from '../utils/bengaliNumerals';
+import { getNextRegNo, formatRegNo, toBengaliNumber, toEnglishNumber } from '../utils/bengaliNumerals';
 import { EditAttendeeModal } from './EditAttendeeModal';
 import { PrintAttendeeModal } from './PrintAttendeeModal';
 
@@ -25,6 +31,7 @@ interface AttendeeTableProps {
   onAddAttendee: (attendee: Omit<Attendee, 'id'>) => void;
   onUpdateAttendee: (attendee: Attendee) => Promise<boolean | void> | void;
   onDeleteAttendee: (id: string) => void;
+  onReorderAttendees?: (reorderedList: Attendee[]) => Promise<void> | void;
   onPhotoUpload: (id: string, photoUrl: string) => void;
   onBulkPrint?: () => void;
   onPrintAttendee?: (attendee: Attendee, mode: 'single' | 'sheet4') => void;
@@ -40,6 +47,7 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
   onAddAttendee,
   onUpdateAttendee,
   onDeleteAttendee,
+  onReorderAttendees,
   onPhotoUpload,
   onBulkPrint,
   onPrintAttendee,
@@ -50,6 +58,13 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingAttendee, setEditingAttendee] = useState<Attendee | null>(null);
   const [printingAttendee, setPrintingAttendee] = useState<Attendee | null>(null);
+
+  // Position change & reordering states
+  const [placeModalData, setPlaceModalData] = useState<{ attendee: Attendee; currentIndex: number } | null>(null);
+  const [targetPlaceInput, setTargetPlaceInput] = useState<string>('');
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
   const [newAttendee, setNewAttendee] = useState({
     regNo: '',
@@ -69,6 +84,82 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
       att.school.toLowerCase().includes(searchTerm.toLowerCase()) ||
       att.district.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const showFeedback = (msg: string) => {
+    setFeedbackMessage(msg);
+    setTimeout(() => {
+      setFeedbackMessage((current) => (current === msg ? null : current));
+    }, 4000);
+  };
+
+  const handleMoveUp = (index: number) => {
+    if (index <= 0 || !onReorderAttendees) return;
+    const updated = [...savedAttendees];
+    const temp = updated[index - 1];
+    updated[index - 1] = updated[index];
+    updated[index] = temp;
+
+    // Resequence registration IDs sequentially (0001, 0002...)
+    const resequenced = updated.map((item, idx) => ({
+      ...item,
+      regNo: formatRegNo(idx + 1),
+    }));
+
+    onReorderAttendees(resequenced);
+    showFeedback(`'${updated[index - 1].name}' এক ধাপ উপরে স্থানান্তর করা হয়েছে এবং আইডি সমন্বয় করা হয়েছে`);
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index >= savedAttendees.length - 1 || !onReorderAttendees) return;
+    const updated = [...savedAttendees];
+    const temp = updated[index + 1];
+    updated[index + 1] = updated[index];
+    updated[index] = temp;
+
+    // Resequence registration IDs sequentially (0001, 0002...)
+    const resequenced = updated.map((item, idx) => ({
+      ...item,
+      regNo: formatRegNo(idx + 1),
+    }));
+
+    onReorderAttendees(resequenced);
+    showFeedback(`'${updated[index + 1].name}' এক ধাপ নিচে স্থানান্তর করা হয়েছে এবং আইডি সমন্বয় করা হয়েছে`);
+  };
+
+  const handleChangePlace = (fromIndex: number, targetPosition1Based: number) => {
+    if (!onReorderAttendees) return;
+    const targetIdx = Math.max(0, Math.min(savedAttendees.length - 1, targetPosition1Based - 1));
+    if (fromIndex === targetIdx) return;
+
+    const updated = [...savedAttendees];
+    const [movedItem] = updated.splice(fromIndex, 1);
+    updated.splice(targetIdx, 0, movedItem);
+
+    // Resequence registration IDs sequentially (0001, 0002...)
+    const resequenced = updated.map((item, idx) => ({
+      ...item,
+      regNo: formatRegNo(idx + 1),
+    }));
+
+    onReorderAttendees(resequenced);
+    showFeedback(`'${movedItem.name}' কে ${toBengaliNumber(targetIdx + 1)} নং অবস্থানে স্থানান্তর করা হয়েছে এবং সকল আইডি আপডেট করা হয়েছে`);
+  };
+
+  const handleOpenPlaceModal = (att: Attendee, currIdx: number) => {
+    setPlaceModalData({ attendee: att, currentIndex: currIdx });
+    setTargetPlaceInput(String(currIdx + 1));
+  };
+
+  const handleConfirmPlaceModal = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!placeModalData) return;
+    const cleanDigits = toEnglishNumber(targetPlaceInput).replace(/\D/g, '');
+    const num = parseInt(cleanDigits, 10);
+    if (!isNaN(num) && num >= 1 && num <= savedAttendees.length) {
+      handleChangePlace(placeModalData.currentIndex, num);
+      setPlaceModalData(null);
+    }
+  };
 
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,7 +214,7 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            প্রতিটি সদস্যের জন্য সরাসরি প্রিন্ট, এডিট বা প্রিভিউ অপশন ব্যবহার করুন
+            সদস্যদের উপরে/নিচে স্থানান্তর (Change Place) করতে ড্র্যাগ করুন বা ↑ / ↓ ব্যবহার করুন। স্থান পরিবর্তনের সাথে সাথে নিবন্ধন নম্বর (আইডি) স্বয়ংক্রিয়ভাবে পুনর্নির্ধারণ হবে।
           </p>
         </div>
 
@@ -319,16 +410,40 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
         </form>
       )}
 
-      {/* Search Input */}
-      <div className="relative mb-3">
-        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          type="text"
-          placeholder="নাম, নিবন্ধন নম্বর বা স্কুল লিখে সার্চ করুন..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
-        />
+      {/* Search Input & Notices */}
+      <div className="space-y-2 mb-3">
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="নাম, নিবন্ধন নম্বর বা স্কুল লিখে সার্চ করুন..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+          />
+        </div>
+
+        {feedbackMessage && (
+          <div className="p-2.5 bg-emerald-950/70 border border-emerald-500/40 rounded-xl text-emerald-300 text-xs flex items-center justify-between gap-2 shadow-sm animate-fade-in">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{feedbackMessage}</span>
+            </div>
+            <button
+              onClick={() => setFeedbackMessage(null)}
+              className="text-emerald-400 hover:text-white"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {searchTerm.trim() !== '' && (
+          <div className="p-2 bg-amber-950/40 border border-amber-600/30 rounded-xl text-amber-300/90 text-xs flex items-center gap-2">
+            <Info className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>ফিল্টার চালু থাকা অবস্থায় ক্রম পরিবর্তন নিষ্ক্রিয় থাকে। সদস্যদের স্থান বা আইডি পরিবর্তন করতে উপরের সার্চ বক্স খালি করুন।</span>
+          </div>
+        )}
       </div>
 
       {/* Attendees Table */}
@@ -336,6 +451,7 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
         <table className="w-full text-left text-xs">
           <thead className="bg-slate-800/80 text-slate-400 border-b border-slate-800">
             <tr>
+              <th className="p-3 w-32 text-center" title="উপরে/নিচে বাটন চেপে বা টেনে স্থান পরিবর্তন করুন">ক্রম ও অবস্থান</th>
               <th className="p-3 w-12 text-center">ছবি</th>
               <th className="p-3">নিবন্ধন নং</th>
               <th className="p-3">নাম</th>
@@ -349,23 +465,115 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
           <tbody className="divide-y divide-slate-800/60">
             {filteredAttendees.length === 0 ? (
               <tr>
-                <td colSpan={8} className="p-6 text-center text-slate-500">
+                <td colSpan={9} className="p-6 text-center text-slate-500">
                   কোনো সদস্য পাওয়া যায়নি।
                 </td>
               </tr>
             ) : (
               filteredAttendees.map((att) => {
                 const isSelected = att.id === selectedAttendeeId;
+                const originalIndex = savedAttendees.findIndex((a) => a.id === att.id);
+                const isDraggingThis = draggedIndex === originalIndex;
+                const isDragOverThis = dragOverIndex === originalIndex;
+
                 return (
                   <tr
                     key={att.id}
+                    draggable={!searchTerm.trim()}
+                    onDragStart={(e) => {
+                      if (searchTerm.trim()) return;
+                      e.dataTransfer.setData('text/plain', String(originalIndex));
+                      e.dataTransfer.effectAllowed = 'move';
+                      setDraggedIndex(originalIndex);
+                    }}
+                    onDragOver={(e) => {
+                      if (searchTerm.trim()) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      if (dragOverIndex !== originalIndex) {
+                        setDragOverIndex(originalIndex);
+                      }
+                    }}
+                    onDragLeave={() => {
+                      if (dragOverIndex === originalIndex) {
+                        setDragOverIndex(null);
+                      }
+                    }}
+                    onDrop={(e) => {
+                      if (searchTerm.trim()) return;
+                      e.preventDefault();
+                      if (draggedIndex !== null && draggedIndex !== originalIndex) {
+                        handleChangePlace(draggedIndex, originalIndex + 1);
+                      }
+                      setDraggedIndex(null);
+                      setDragOverIndex(null);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedIndex(null);
+                      setDragOverIndex(null);
+                    }}
                     onClick={() => onSelectAttendee(att.id)}
-                    className={`cursor-pointer transition ${
-                      isSelected
+                    className={`cursor-pointer transition select-none ${
+                      isDraggingThis
+                        ? 'opacity-40 bg-slate-800 border-2 border-dashed border-emerald-500'
+                        : isDragOverThis
+                        ? 'bg-emerald-950/60 ring-2 ring-emerald-500'
+                        : isSelected
                         ? 'bg-emerald-950/40 border-l-4 border-l-emerald-500'
                         : 'hover:bg-slate-800/40'
                     }`}
                   >
+                    {/* Position / Move Controls Column */}
+                    <td
+                      className="p-2 text-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        {/* Drag Handle */}
+                        <div
+                          className={`p-1 text-slate-500 hover:text-slate-300 transition ${
+                            searchTerm ? 'opacity-25 cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'
+                          }`}
+                          title={searchTerm ? 'সার্চ থাকা অবস্থায় ড্র্যাগ নিষ্ক্রিয়' : 'মাউস দিয়ে টেনে উপরে বা নিচে সরান'}
+                        >
+                          <GripVertical className="w-4 h-4" />
+                        </div>
+
+                        {/* Serial Number & Change Place Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPlaceModal(att, originalIndex)}
+                          className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-emerald-500/60 transition inline-flex items-center gap-1"
+                          title="সরাসরি নির্দিষ্ট অবস্থানে সরান (Change Place)"
+                        >
+                          <span>{toBengaliNumber(originalIndex + 1)}</span>
+                          <ArrowUpDown className="w-2.5 h-2.5 text-slate-400" />
+                        </button>
+
+                        {/* Move Up Button */}
+                        <button
+                          type="button"
+                          disabled={originalIndex <= 0 || !!searchTerm}
+                          onClick={() => handleMoveUp(originalIndex)}
+                          className="p-1 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition disabled:opacity-20 disabled:hover:text-slate-400 disabled:hover:bg-transparent"
+                          title="এক ধাপ উপরে সরান (Move Up)"
+                        >
+                          <ChevronUp className="w-4 h-4" />
+                        </button>
+
+                        {/* Move Down Button */}
+                        <button
+                          type="button"
+                          disabled={originalIndex >= savedAttendees.length - 1 || !!searchTerm}
+                          onClick={() => handleMoveDown(originalIndex)}
+                          className="p-1 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition disabled:opacity-20 disabled:hover:text-slate-400 disabled:hover:bg-transparent"
+                          title="এক ধাপ নিচে সরান (Move Down)"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+
                     {/* Photo thumbnail */}
                     <td className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
                       <label className="relative inline-block w-8 h-8 rounded-full overflow-hidden border border-emerald-500/40 cursor-pointer group bg-slate-800">
@@ -492,6 +700,109 @@ export const AttendeeTable: React.FC<AttendeeTableProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* Change Place / Reorder Position Modal */}
+      {placeModalData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-base font-bold text-white">সদস্যের অবস্থান (ক্রম) পরিবর্তন</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPlaceModalData(null)}
+                className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="bg-slate-850 p-3.5 rounded-xl border border-slate-800 text-xs space-y-1.5">
+              <div className="text-slate-300">
+                <span className="text-slate-400">সদস্যের নাম:</span> <strong className="text-white text-sm">{placeModalData.attendee.name}</strong>
+              </div>
+              {placeModalData.attendee.school && (
+                <div className="text-slate-400">
+                  <span>স্কুল/প্রতিষ্ঠান:</span> <span className="text-slate-300">{placeModalData.attendee.school}</span>
+                </div>
+              )}
+              <div className="text-emerald-400 font-medium flex items-center gap-2 pt-1">
+                <span>বর্তমান ক্রম: <span className="font-mono font-bold text-white bg-slate-800 px-2 py-0.5 rounded border border-slate-700">{toBengaliNumber(placeModalData.currentIndex + 1)}</span></span>
+                <span>•</span>
+                <span>বর্তমান আইডি: <span className="font-mono font-bold text-emerald-300">{placeModalData.attendee.regNo}</span></span>
+              </div>
+            </div>
+
+            {/* Quick Presets */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  handleChangePlace(placeModalData.currentIndex, 1);
+                  setPlaceModalData(null);
+                }}
+                className="flex-1 py-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium border border-slate-700 transition"
+              >
+                ⏮ সবার শুরুতে (১)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleChangePlace(placeModalData.currentIndex, savedAttendees.length);
+                  setPlaceModalData(null);
+                }}
+                className="flex-1 py-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium border border-slate-700 transition"
+              >
+                ⏭ সবার শেষে ({toBengaliNumber(savedAttendees.length)})
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmPlaceModal} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  নতুন অবস্থান লিখুন (১ থেকে {toBengaliNumber(savedAttendees.length)} এর মধ্যে):
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={savedAttendees.length}
+                    autoFocus
+                    required
+                    value={targetPlaceInput}
+                    onChange={(e) => setTargetPlaceInput(e.target.value)}
+                    className="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none"
+                    placeholder="যেমন: ১"
+                  />
+                  <span className="text-xs text-slate-400">/{toBengaliNumber(savedAttendees.length)}</span>
+                </div>
+              </div>
+
+              <div className="p-3 bg-emerald-950/30 border border-emerald-500/20 rounded-xl text-[11px] text-emerald-300/90 leading-relaxed">
+                💡 <strong>আইডি স্বয়ংক্রিয় সমন্বয়:</strong> সদস্যের অবস্থান পরিবর্তন করলে এই সদস্য এবং সংশ্লিষ্ট সকল সদস্যের নিবন্ধন নম্বর (আইডি) স্বয়ংক্রিয়ভাবে ক্রমানুসারে (০০০১, ০০০২...) আপডেট হয়ে যাবে।
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPlaceModalData(null)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-950/50 cursor-pointer"
+                >
+                  অবস্থান পরিবর্তন ও আইডি আপডেট
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Edit Attendee Modal */}
       <EditAttendeeModal

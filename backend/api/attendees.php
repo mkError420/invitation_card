@@ -49,6 +49,23 @@ try {
                 exit;
             }
 
+            if ($act === 'reorder') {
+                $items = $input['attendees'] ?? [];
+                if (!is_array($items)) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Invalid attendees list format'], JSON_UNESCAPED_UNICODE);
+                    exit;
+                }
+                $result = $model->reorder($items);
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Attendees reordered successfully',
+                    'count' => count($result),
+                    'data' => $result
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
             if ($act === 'batch' || $act === 'import') {
                 $items = $input['attendees'] ?? [];
                 $mode = ($input['mode'] ?? 'append') === 'replace' ? 'replace' : 'append';

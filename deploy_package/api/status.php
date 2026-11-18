@@ -20,6 +20,7 @@ try {
         'status' => 'healthy',
         'message' => 'Invitation Card PHP Backend is running successfully',
         'driver' => $driver,
+        'mysqlError' => Database::$mysqlError,
         'phpVersion' => PHP_VERSION,
         'attendeesCount' => $attendeesCount,
         'eventTitle' => $config['mainTitle'] ?? '',

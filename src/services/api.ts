@@ -302,6 +302,45 @@ export const api = {
   },
 
   /**
+   * Reorder attendees and adjust registration IDs in database
+   */
+  async reorderAttendees(attendees: Attendee[]): Promise<Attendee[]> {
+    try {
+      const res = await fetch(`${API_BASE}/attendees.php?action=reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attendees }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          return json.data;
+        }
+      }
+    } catch {
+      // Fallback direct port 8000
+      try {
+        const fallbackUrl = `http://127.0.0.1:8000/api/attendees.php?action=reorder`;
+        const res = await fetch(fallbackUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ attendees }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            return json.data;
+          }
+        }
+      } catch {
+        // Continue to fallback
+      }
+    }
+    // Fallback to batchImport replace
+    return this.batchImport(attendees, 'replace');
+  },
+
+  /**
    * Reset attendees back to default initial seed
    */
   async resetAttendees(): Promise<Attendee[]> {

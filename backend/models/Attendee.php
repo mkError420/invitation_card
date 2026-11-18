@@ -327,6 +327,31 @@ class AttendeeModel {
     }
 
     /**
+     * Reorder attendees by updating their reg_no and sequence
+     */
+    public function reorder(array $attendees): array {
+        $this->db->beginTransaction();
+        try {
+            $stmt = $this->db->prepare("UPDATE attendees SET reg_no = :reg_no, updated_at = CURRENT_TIMESTAMP WHERE id = :id");
+            foreach ($attendees as $att) {
+                $id = !empty($att['id']) ? (string)$att['id'] : null;
+                $regNo = (string)($att['regNo'] ?? $att['reg_no'] ?? '');
+                if ($id && $regNo) {
+                    $stmt->execute([
+                        ':reg_no' => $regNo,
+                        ':id' => $id,
+                    ]);
+                }
+            }
+            $this->db->commit();
+            return $this->getAll();
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
      * Batch import (replace or append)
      */
     public function batchImport(array $attendees, string $mode = 'append'): array {
