@@ -60,6 +60,27 @@ $allAfter = $attendeeModel->getAll();
 assert(count($allAfter) === $countBefore - 1, "Count should decrease by 1");
 $updatedNextTarget = $attendeeModel->getById($nextTarget['id']);
 assert($updatedNextTarget['regNo'] === '০০০২', "att-3 regNo should have adjusted from ০০০৩ to ০০০২");
+// 6c. Test Archive and Restore
+$attendeeModel->resetToDefault();
+$activeBefore = $attendeeModel->getAll();
+$targetToArchive = $activeBefore[0]; // att-1
+$archivedSuccess = $attendeeModel->archive($targetToArchive['id']);
+assert($archivedSuccess === true, "Archive must succeed");
+$activeAfterArchive = $attendeeModel->getAll();
+assert(count($activeAfterArchive) === count($activeBefore) - 1, "Active count must decrease by 1");
+$archivedList = $attendeeModel->getArchived();
+assert(count($archivedList) >= 1, "Archived list should contain at least 1 attendee");
+assert($archivedList[0]['id'] === $targetToArchive['id'], "Archived list must contain the archived attendee");
+
+// Test Restore
+$restored = $attendeeModel->restore($targetToArchive['id']);
+assert($restored !== null, "Restore must return restored attendee");
+$activeAfterRestore = $attendeeModel->getAll();
+assert(count($activeAfterRestore) === count($activeBefore), "Active count must match original count after restore");
+$archivedListAfter = $attendeeModel->getArchived();
+assert(count($archivedListAfter) === 0, "Archived list should now be empty");
+echo "✓ Archive and Restore functionality verified successfully!\n";
+
 // Restore default sample seed
 $attendeeModel->resetToDefault();
 echo "✓ Resequencing upon deletion verified: registration numbers adjust seamlessly!\n";

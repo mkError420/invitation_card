@@ -126,6 +126,33 @@ export const api = {
   },
 
   /**
+   * Fetch all archived attendees from PHP backend
+   */
+  async getArchivedAttendees(search?: string): Promise<Attendee[]> {
+    const query = new URLSearchParams({ view: 'archived' });
+    if (search) query.append('search', search);
+
+    const url = `${API_BASE}/attendees.php?${query.toString()}`;
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch archived attendees');
+      const json = await res.json();
+      return json.data || [];
+    } catch {
+      // Fallback direct port 8000
+      try {
+        const fallbackUrl = `http://127.0.0.1:8000/api/attendees.php?${query.toString()}`;
+        const res = await fetch(fallbackUrl);
+        const json = await res.json();
+        return json.data || [];
+      } catch {
+        return [];
+      }
+    }
+  },
+
+  /**
    * Public registration for invited guests (auto generates sequential first-come ID)
    */
   async registerPublicAttendee(data: {
@@ -252,22 +279,25 @@ export const api = {
   },
 
   /**
-   * Delete attendee from database and return re-adjusted attendees list
+   * Delete attendee from database (moves to archive by default, or permanently if permanent=true)
    */
-  async deleteAttendee(id: string, regNo?: string): Promise<{ success: boolean; data?: Attendee[] }> {
-    const params = new URLSearchParams({ action: 'delete', id });
+  async deleteAttendee(id: string, regNo?: string, permanent: boolean = false): Promise<{ success: boolean; data?: Attendee[]; archivedList?: Attendee[] }> {
+    const params = new URLSearchParams({ action: permanent ? 'permanent_delete' : 'delete', id });
     if (regNo) params.append('regNo', regNo);
+    if (permanent) params.append('permanent', '1');
     const queryString = params.toString();
+
+    const payload = { id, regNo, action: permanent ? 'permanent_delete' : 'delete', permanent };
 
     try {
       const res = await fetch(`${API_BASE}/attendees.php?${queryString}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, regNo, action: 'delete' }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         const json = await res.json();
-        return { success: !!json.success, data: json.data };
+        return { success: !!json.success, data: json.data, archivedList: json.archivedList };
       }
     } catch {
       // Fallback direct port 8000
@@ -276,10 +306,129 @@ export const api = {
         const res = await fetch(fallbackUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, regNo, action: 'delete' }),
+          body: JSON.stringify(payload),
         });
         const json = await res.json();
-        return { success: !!json.success, data: json.data };
+        return { success: !!json.success, data: json.data, archivedList: json.archivedList };
+      } catch {
+        return { success: false };
+      }
+    }
+    return { success: false };
+  },
+
+  /**
+   * Move attendee to archive
+   */
+  async archiveAttendee(id: string, regNo?: string): Promise<{ success: boolean; data?: Attendee[]; archivedList?: Attendee[] }> {
+    return this.deleteAttendee(id, regNo, false);
+  },
+
+  /**
+   * Restore attendee from archive
+   */
+  async restoreAttendee(id: string): Promise<{ success: boolean; data?: Attendee; active?: Attendee[]; archivedList?: Attendee[] }> {
+    const params = new URLSearchParams({ action: 'restore', id });
+    const payload = { id, action: 'restore' };
+
+    try {
+      const res = await fetch(`${API_BASE}/attendees.php?${params.toString()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        return {
+          success: !!json.success,
+          data: json.data,
+          active: json.active,
+          archivedList: json.archivedList,
+        };
+      }
+    } catch {
+      try {
+        const directRes = await fetch(`http://127.0.0.1:8000/api/attendees.php?${params.toString()}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const json = await directRes.json();
+        return {
+          success: !!json.success,
+          data: json.data,
+          active: json.active,
+          archivedList: json.archivedList,
+        };
+      } catch {
+        return { success: false };
+      }
+    }
+    return { success: false };
+  },
+
+  /**
+   * Restore all archived attendees
+   */
+  async restoreAllAttendees(): Promise<{ success: boolean; active?: Attendee[]; archivedList?: Attendee[] }> {
+    const params = new URLSearchParams({ action: 'restore_all' });
+    try {
+      const res = await fetch(`${API_BASE}/attendees.php?${params.toString()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'restore_all' }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        return { success: !!json.success, active: json.active, archivedList: json.archivedList };
+      }
+    } catch {
+      try {
+        const directRes = await fetch(`http://127.0.0.1:8000/api/attendees.php?${params.toString()}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'restore_all' }),
+        });
+        const json = await directRes.json();
+        return { success: !!json.success, active: json.active, archivedList: json.archivedList };
+      } catch {
+        return { success: false };
+      }
+    }
+    return { success: false };
+  },
+
+  /**
+   * Permanently delete attendee from archive & database
+   */
+  async permanentDeleteAttendee(id: string, regNo?: string): Promise<{ success: boolean; data?: Attendee[]; archivedList?: Attendee[] }> {
+    return this.deleteAttendee(id, regNo, true);
+  },
+
+  /**
+   * Clear all attendees from archive permanently
+   */
+  async clearArchive(): Promise<{ success: boolean; clearedCount?: number; archivedList?: Attendee[] }> {
+    const params = new URLSearchParams({ action: 'clear_archive' });
+    try {
+      const res = await fetch(`${API_BASE}/attendees.php?${params.toString()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'clear_archive' }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        return { success: !!json.success, clearedCount: json.clearedCount, archivedList: json.archivedList };
+      }
+    } catch {
+      try {
+        const directRes = await fetch(`http://127.0.0.1:8000/api/attendees.php?${params.toString()}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'clear_archive' }),
+        });
+        const json = await directRes.json();
+        return { success: !!json.success, clearedCount: json.clearedCount, archivedList: json.archivedList };
       } catch {
         return { success: false };
       }

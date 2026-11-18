@@ -22,7 +22,7 @@ try {
     switch ($method) {
         case 'GET':
             if ($id) {
-                $attendee = $model->getById($id);
+                $attendee = $model->getById($id, true);
                 if (!$attendee) {
                     http_response_code(404);
                     echo json_encode(['success' => false, 'error' => 'Attendee not found'], JSON_UNESCAPED_UNICODE);
@@ -31,7 +31,13 @@ try {
                 echo json_encode(['success' => true, 'data' => $attendee], JSON_UNESCAPED_UNICODE);
             } else {
                 $search = $_GET['search'] ?? null;
-                $list = $model->getAll($search);
+                $view = $_GET['view'] ?? null;
+                $isArchivedQuery = ($view === 'archived') || (isset($_GET['archived']) && ($_GET['archived'] === '1' || $_GET['archived'] === 'true'));
+                if ($isArchivedQuery) {
+                    $list = $model->getArchived($search);
+                } else {
+                    $list = $model->getAll($search);
+                }
                 echo json_encode(['success' => true, 'count' => count($list), 'data' => $list], JSON_UNESCAPED_UNICODE);
             }
             break;
@@ -46,6 +52,95 @@ try {
                 $saved = $model->save($input);
                 http_response_code(200);
                 echo json_encode(['success' => true, 'data' => $saved], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
+            if ($act === 'archive') {
+                $targetId = $id ?: ($input['id'] ?? null);
+                $targetReg = $_GET['regNo'] ?? ($input['regNo'] ?? null);
+                if (!$targetId) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Attendee ID is required for archive'], JSON_UNESCAPED_UNICODE);
+                    exit;
+                }
+                $archived = $model->archive($targetId, $targetReg);
+                $remaining = $model->getAll();
+                $archivedList = $model->getArchived();
+                echo json_encode([
+                    'success' => true,
+                    'archived' => $archived,
+                    'data' => $remaining,
+                    'archivedList' => $archivedList
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
+            if ($act === 'restore') {
+                $targetId = $id ?: ($input['id'] ?? null);
+                if (!$targetId) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Attendee ID is required for restore'], JSON_UNESCAPED_UNICODE);
+                    exit;
+                }
+                $restored = $model->restore($targetId);
+                if (!$restored) {
+                    http_response_code(404);
+                    echo json_encode(['success' => false, 'error' => 'Archived attendee not found or restore failed'], JSON_UNESCAPED_UNICODE);
+                    exit;
+                }
+                $remainingArchived = $model->getArchived();
+                $activeList = $model->getAll();
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Attendee restored successfully',
+                    'data' => $restored,
+                    'active' => $activeList,
+                    'archivedList' => $remainingArchived
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
+            if ($act === 'restore_all') {
+                $activeList = $model->restoreAll();
+                $remainingArchived = $model->getArchived();
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'All archived attendees restored successfully',
+                    'active' => $activeList,
+                    'archivedList' => $remainingArchived
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
+            if ($act === 'clear_archive') {
+                $clearedCount = $model->clearArchive();
+                $remainingArchived = $model->getArchived();
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Archive cleared successfully',
+                    'clearedCount' => $clearedCount,
+                    'archivedList' => $remainingArchived
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
+            if ($act === 'permanent_delete' || $act === 'delete_permanent') {
+                $targetId = $id ?: ($input['id'] ?? null);
+                $targetReg = $_GET['regNo'] ?? ($input['regNo'] ?? null);
+                if (!$targetId) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Attendee ID is required for permanent deletion'], JSON_UNESCAPED_UNICODE);
+                    exit;
+                }
+                $deleted = $model->deletePermanently($targetId, $targetReg);
+                $remaining = $model->getAll();
+                $archivedList = $model->getArchived();
+                echo json_encode([
+                    'success' => true,
+                    'deleted' => $deleted,
+                    'data' => $remaining,
+                    'archivedList' => $archivedList
+                ], JSON_UNESCAPED_UNICODE);
                 exit;
             }
 
@@ -98,14 +193,21 @@ try {
             if ($act === 'delete') {
                 $targetId = $id ?: ($input['id'] ?? null);
                 $targetReg = $_GET['regNo'] ?? ($input['regNo'] ?? null);
+                $isPermanent = !empty($input['permanent']) || !empty($_GET['permanent']);
                 if (!$targetId) {
                     http_response_code(400);
                     echo json_encode(['success' => false, 'error' => 'Attendee ID is required for deletion'], JSON_UNESCAPED_UNICODE);
                     exit;
                 }
-                $deleted = $model->delete($targetId, $targetReg);
+                $deleted = $model->delete($targetId, $targetReg, $isPermanent);
                 $remaining = $model->getAll();
-                echo json_encode(['success' => true, 'deleted' => $deleted, 'data' => $remaining], JSON_UNESCAPED_UNICODE);
+                $archivedList = $model->getArchived();
+                echo json_encode([
+                    'success' => true,
+                    'deleted' => $deleted,
+                    'data' => $remaining,
+                    'archivedList' => $archivedList
+                ], JSON_UNESCAPED_UNICODE);
                 exit;
             }
 
@@ -156,14 +258,21 @@ try {
                 $targetId = $input['id'] ?? null;
             }
             $targetReg = $_GET['regNo'] ?? ($input['regNo'] ?? null);
+            $isPermanent = !empty($input['permanent']) || !empty($_GET['permanent']);
             if (!$targetId) {
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'Attendee ID is required for deletion'], JSON_UNESCAPED_UNICODE);
                 exit;
             }
-            $deleted = $model->delete($targetId, $targetReg);
+            $deleted = $model->delete($targetId, $targetReg, $isPermanent);
             $remaining = $model->getAll();
-            echo json_encode(['success' => true, 'deleted' => $deleted, 'data' => $remaining], JSON_UNESCAPED_UNICODE);
+            $archivedList = $model->getArchived();
+            echo json_encode([
+                'success' => true,
+                'deleted' => $deleted,
+                'data' => $remaining,
+                'archivedList' => $archivedList
+            ], JSON_UNESCAPED_UNICODE);
             break;
 
         default:

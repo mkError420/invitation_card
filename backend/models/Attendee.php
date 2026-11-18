@@ -21,20 +21,23 @@ class AttendeeModel {
             'guests' => (string)($row['guests'] ?? '১'),
             'phone' => (string)($row['phone'] ?? ''),
             'photoUrl' => (string)($row['photo_url'] ?? ''),
+            'isArchived' => !empty($row['is_archived']),
+            'archivedAt' => $row['archived_at'] ?? null,
             'createdAt' => $row['created_at'] ?? null,
             'updatedAt' => $row['updated_at'] ?? null,
         ];
     }
 
     /**
-     * Get all attendees, optionally filtered by search keyword
+     * Get all active attendees (or all if includeArchived=true), optionally filtered by search keyword
      */
-    public function getAll(?string $search = null): array {
+    public function getAll(?string $search = null, bool $includeArchived = false): array {
+        $archiveClause = $includeArchived ? "1=1" : "(is_archived = 0 OR is_archived IS NULL)";
         if ($search && trim($search) !== '') {
             $term = '%' . trim($search) . '%';
             $stmt = $this->db->prepare("
                 SELECT * FROM attendees 
-                WHERE name LIKE :s1 OR reg_no LIKE :s2 OR school LIKE :s3 OR district LIKE :s4 OR phone LIKE :s5
+                WHERE {$archiveClause} AND (name LIKE :s1 OR reg_no LIKE :s2 OR school LIKE :s3 OR district LIKE :s4 OR phone LIKE :s5)
                 ORDER BY created_at ASC
             ");
             $stmt->execute([
@@ -45,7 +48,7 @@ class AttendeeModel {
                 ':s5' => $term,
             ]);
         } else {
-            $stmt = $this->db->query("SELECT * FROM attendees ORDER BY created_at ASC");
+            $stmt = $this->db->query("SELECT * FROM attendees WHERE {$archiveClause} ORDER BY created_at ASC");
         }
 
         $rows = $stmt->fetchAll();
@@ -65,10 +68,37 @@ class AttendeeModel {
     }
 
     /**
+     * Get all archived attendees, optionally filtered by search keyword
+     */
+    public function getArchived(?string $search = null): array {
+        if ($search && trim($search) !== '') {
+            $term = '%' . trim($search) . '%';
+            $stmt = $this->db->prepare("
+                SELECT * FROM attendees 
+                WHERE is_archived = 1 AND (name LIKE :s1 OR reg_no LIKE :s2 OR school LIKE :s3 OR district LIKE :s4 OR phone LIKE :s5)
+                ORDER BY archived_at DESC, updated_at DESC
+            ");
+            $stmt->execute([
+                ':s1' => $term,
+                ':s2' => $term,
+                ':s3' => $term,
+                ':s4' => $term,
+                ':s5' => $term,
+            ]);
+        } else {
+            $stmt = $this->db->query("SELECT * FROM attendees WHERE is_archived = 1 ORDER BY archived_at DESC, updated_at DESC");
+        }
+
+        $rows = $stmt->fetchAll();
+        return array_map([self::class, 'formatRow'], $rows);
+    }
+
+    /**
      * Get attendee by ID
      */
-    public function getById(string $id): ?array {
-        $stmt = $this->db->prepare("SELECT * FROM attendees WHERE id = :id LIMIT 1");
+    public function getById(string $id, bool $includeArchived = false): ?array {
+        $archiveClause = $includeArchived ? "" : " AND (is_archived = 0 OR is_archived IS NULL)";
+        $stmt = $this->db->prepare("SELECT * FROM attendees WHERE id = :id {$archiveClause} LIMIT 1");
         $stmt->execute([':id' => $id]);
         $row = $stmt->fetch();
         return $row ? self::formatRow($row) : null;
@@ -78,7 +108,7 @@ class AttendeeModel {
      * Calculate next sequential registration number in Bengali digits (First In, First ID: ০০০১, ০০০২...)
      */
     public function getNextRegNo(): string {
-        $stmt = $this->db->query("SELECT reg_no FROM attendees");
+        $stmt = $this->db->query("SELECT reg_no FROM attendees WHERE is_archived = 0 OR is_archived IS NULL");
         $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
         $bnToEn = [
@@ -251,9 +281,77 @@ class AttendeeModel {
     }
 
     /**
-     * Delete attendee by ID or regNo and re-adjust remaining registration numbers sequentially (০০০১, ০০০২...)
+     * Archive attendee by ID or regNo and re-adjust remaining registration numbers sequentially (০০০১, ০০০২...)
      */
-    public function delete(string $id, ?string $regNo = null): bool {
+    public function archive(string $id, ?string $regNo = null): bool {
+        $targetReg = $regNo ?: $id;
+        $stmt = $this->db->prepare("
+            UPDATE attendees 
+            SET is_archived = 1, archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = :id OR id = :regNo OR reg_no = :id2 OR reg_no = :regNo2
+        ");
+        $stmt->execute([':id' => $id, ':regNo' => $targetReg, ':id2' => $id, ':regNo2' => $targetReg]);
+        $archived = $stmt->rowCount() > 0;
+
+        if ($archived) {
+            $this->resequenceRegNumbers();
+        }
+
+        return $archived;
+    }
+
+    /**
+     * Restore archived attendee and re-sequence registration numbers
+     */
+    public function restore(string $id): ?array {
+        $target = $this->getById($id, true);
+        if (!$target) return null;
+
+        $nextReg = $this->getNextRegNo();
+        $stmt = $this->db->prepare("
+            UPDATE attendees 
+            SET is_archived = 0, archived_at = NULL, reg_no = :reg_no, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = :id
+        ");
+        $stmt->execute([
+            ':id' => $id,
+            ':reg_no' => $nextReg,
+        ]);
+
+        if ($stmt->rowCount() > 0) {
+            $this->resequenceRegNumbers();
+            return $this->getById($id, false);
+        }
+
+        return null;
+    }
+
+    /**
+     * Restore all archived attendees back to active list
+     */
+    public function restoreAll(): array {
+        $stmt = $this->db->query("SELECT id FROM attendees WHERE is_archived = 1");
+        $archivedIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($archivedIds as $archivedId) {
+            $this->restore($archivedId);
+        }
+        return $this->getAll();
+    }
+
+    /**
+     * Delete attendee: defaults to moving to Archive. If $permanent is true, permanently deletes.
+     */
+    public function delete(string $id, ?string $regNo = null, bool $permanent = false): bool {
+        if ($permanent) {
+            return $this->deletePermanently($id, $regNo);
+        }
+        return $this->archive($id, $regNo);
+    }
+
+    /**
+     * Permanently delete attendee by ID or regNo from database and clean up photo
+     */
+    public function deletePermanently(string $id, ?string $regNo = null): bool {
         $targetReg = $regNo ?: $id;
         // Also remove uploaded photo if it was a local server upload
         try {
@@ -284,6 +382,21 @@ class AttendeeModel {
         }
 
         return $deleted;
+    }
+
+    /**
+     * Clear all attendees currently in archive
+     */
+    public function clearArchive(): int {
+        $stmt = $this->db->query("SELECT id, reg_no FROM attendees WHERE is_archived = 1");
+        $rows = $stmt->fetchAll();
+        $count = 0;
+        foreach ($rows as $row) {
+            if ($this->deletePermanently($row['id'], $row['reg_no'])) {
+                $count++;
+            }
+        }
+        return $count;
     }
 
     /**

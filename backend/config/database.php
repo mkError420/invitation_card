@@ -148,6 +148,14 @@ class Database {
             if ($stmt->fetchColumn() === false) {
                 $pdo->exec("ALTER TABLE attendees ADD COLUMN photo_url LONGTEXT DEFAULT NULL AFTER phone");
             }
+            $stmtArchived = $pdo->query("SHOW COLUMNS FROM attendees LIKE 'is_archived'");
+            if ($stmtArchived->fetchColumn() === false) {
+                $pdo->exec("ALTER TABLE attendees ADD COLUMN is_archived TINYINT(1) NOT NULL DEFAULT 0 AFTER photo_url");
+            }
+            $stmtArchivedAt = $pdo->query("SHOW COLUMNS FROM attendees LIKE 'archived_at'");
+            if ($stmtArchivedAt->fetchColumn() === false) {
+                $pdo->exec("ALTER TABLE attendees ADD COLUMN archived_at TIMESTAMP NULL DEFAULT NULL AFTER is_archived");
+            }
         } catch (Exception $e) {
             // ignore
         }
@@ -158,6 +166,12 @@ class Database {
             $cols = $pdo->query("PRAGMA table_info(attendees)")->fetchAll(PDO::FETCH_COLUMN, 1);
             if (!in_array('photo_url', $cols)) {
                 $pdo->exec("ALTER TABLE attendees ADD COLUMN photo_url TEXT DEFAULT ''");
+            }
+            if (!in_array('is_archived', $cols)) {
+                $pdo->exec("ALTER TABLE attendees ADD COLUMN is_archived INTEGER DEFAULT 0");
+            }
+            if (!in_array('archived_at', $cols)) {
+                $pdo->exec("ALTER TABLE attendees ADD COLUMN archived_at DATETIME DEFAULT NULL");
             }
         } catch (Exception $e) {
             // ignore
@@ -183,6 +197,8 @@ class Database {
                 guests TEXT DEFAULT '১',
                 phone TEXT DEFAULT '',
                 photo_url TEXT DEFAULT '',
+                is_archived INTEGER DEFAULT 0,
+                archived_at DATETIME DEFAULT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );

@@ -12,11 +12,14 @@ CREATE TABLE IF NOT EXISTS `attendees` (
     `guests` VARCHAR(50) DEFAULT '১',
     `phone` VARCHAR(50) DEFAULT '',
     `photo_url` LONGTEXT DEFAULT NULL,
+    `is_archived` TINYINT(1) NOT NULL DEFAULT 0,
+    `archived_at` TIMESTAMP NULL DEFAULT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     INDEX `idx_reg_no` (`reg_no`),
-    INDEX `idx_name` (`name`)
+    INDEX `idx_name` (`name`),
+    INDEX `idx_is_archived` (`is_archived`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 2. Event Configuration Table

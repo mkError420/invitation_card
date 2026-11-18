@@ -116,6 +116,19 @@ export default function App() {
     return prepareAttendeesWithBlank([]).blankId;
   });
 
+  const [archivedAttendees, setArchivedAttendees] = useState<Attendee[]>(() => {
+    try {
+      const saved = localStorage.getItem('somaborton_archived_attendees_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
+
   const [config, setConfig] = useState<EventConfig>(DEFAULT_EVENT_CONFIG);
   const [backendStatus, setBackendStatus] = useState<BackendStatus>({ online: false });
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
@@ -130,6 +143,15 @@ export default function App() {
       }
     }
   }, [attendees]);
+
+  // Sync archived attendees changes to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('somaborton_archived_attendees_v1', JSON.stringify(archivedAttendees));
+    } catch (err) {
+      console.warn('LocalStorage save archived attendees failed:', err);
+    }
+  }, [archivedAttendees]);
 
   // Active view tab: 'single' | 'a4print' | 'table'
   const [activeView, setActiveView] = useState<'single' | 'a4print' | 'table'>('single');
@@ -168,11 +190,15 @@ export default function App() {
         setBackendStatus(status);
         if (status.online) {
           setIsSyncing(true);
-          const [remoteAttendees, remoteConfig] = await Promise.all([
+          const [remoteAttendees, remoteConfig, remoteArchived] = await Promise.all([
             api.getAttendees(),
             api.getConfig(),
+            api.getArchivedAttendees(),
           ]);
           if (isMounted) {
+            if (remoteArchived && Array.isArray(remoteArchived)) {
+              setArchivedAttendees(remoteArchived);
+            }
             if (remoteAttendees && remoteAttendees.length > 0) {
               const prep = prepareAttendeesWithBlank(remoteAttendees);
               setAttendees(prep.all);
@@ -339,28 +365,38 @@ export default function App() {
 
   const handleDeleteAttendee = async (id: string) => {
     const target = attendees.find((a) => a.id === id);
+    if (!target || !target.name.trim()) return;
+
     const targetName = target?.name ? `"${target.name}"` : 'এই সদস্যকে';
-    if (!window.confirm(`${targetName} তালিকা এবং ডাটাবেজ থেকে মুছে ফেলতে চান? বাকি সদস্যদের নিবন্ধন নম্বর (আইডি) স্বয়ংক্রিয়ভাবে সিরিয়াল অনুযায়ী ঠিক করা হবে।`)) {
+    if (!window.confirm(`${targetName} কি আর্কাইভে পাঠাতে চান? তিনি আর্কাইভ তালিকায় সংরক্ষিত থাকবেন এবং যেকোনো সময় সেখান থেকে ফিরিয়ে আনা (Restore) যাবে।`)) {
       return;
     }
 
-    // 1. Filter out the deleted attendee
+    // 1. Add to archive with timestamp
+    const archivedItem: Attendee = {
+      ...target,
+      isArchived: true,
+      archivedAt: new Date().toISOString(),
+    };
+    setArchivedAttendees((prev) => [archivedItem, ...prev.filter((a) => a.id !== id)]);
+
+    // 2. Filter out the deleted/archived attendee from active list
     const remainingValid = attendees.filter((a) => a.id !== id && (a.name || '').trim() !== '');
 
-    // 2. Sort remaining members by numerical regNo to maintain original relative order
+    // 3. Sort remaining members by numerical regNo to maintain original relative order
     remainingValid.sort((a, b) => {
       const numA = parseInt(toEnglishNumber(a.regNo || '').replace(/\D/g, ''), 10) || 0;
       const numB = parseInt(toEnglishNumber(b.regNo || '').replace(/\D/g, ''), 10) || 0;
       return numA - numB;
     });
 
-    // 3. Re-adjust the registration numbers sequentially (০০০১, ০০০২, ০০০৩...)
+    // 4. Re-adjust the registration numbers sequentially (০০০১, ০০০২, ০০০৩...)
     const resequenced: Attendee[] = remainingValid.map((member, index) => ({
       ...member,
       regNo: formatRegNo(index + 1),
     }));
 
-    // 4. Prepare attendees list with next blank card (whose regNo will automatically be next in sequence)
+    // 5. Prepare attendees list with next blank card (whose regNo will automatically be next in sequence)
     const prep = prepareAttendeesWithBlank(resequenced);
     setAttendees(prep.all);
 
@@ -369,20 +405,171 @@ export default function App() {
       setSelectedAttendeeId(prep.blankId);
     }
 
-    // 5. Update localStorage with re-adjusted list
+    // 6. Update localStorage with re-adjusted list
     try {
       localStorage.setItem('somaborton_attendees_v1', JSON.stringify(resequenced));
     } catch (e) {
       console.warn('LocalStorage save attendees failed:', e);
     }
 
-    // 6. Delete from backend database and ensure database matches the resequenced list
+    // 7. Delete / Archive in backend database and ensure active list matches the resequenced list
     if (backendStatus.online) {
       try {
-        await api.deleteAttendee(id, target?.regNo);
+        const res = await api.archiveAttendee(id, target?.regNo);
+        if (res && res.archivedList) {
+          setArchivedAttendees(res.archivedList);
+        }
         await api.batchImport(resequenced, 'replace');
       } catch (err) {
-        console.warn('Backend delete / resequence attendee failed:', err);
+        console.warn('Backend delete / archive attendee failed:', err);
+      }
+    }
+  };
+
+  const handleRestoreAttendee = async (id: string) => {
+    const target = archivedAttendees.find((a) => a.id === id);
+    if (!target) return;
+
+    // 1. Remove from archivedAttendees
+    setArchivedAttendees((prev) => prev.filter((a) => a.id !== id));
+
+    // 2. Add back to active attendees
+    const currentValid = attendees.filter((a) => (a.name || '').trim() !== '');
+    const restoredItem: Attendee = {
+      ...target,
+      isArchived: false,
+      archivedAt: undefined,
+      regNo: formatRegNo(currentValid.length + 1),
+    };
+
+    const updatedValid = [...currentValid, restoredItem];
+    // Re-adjust sequential registration numbers
+    const resequenced = updatedValid.map((member, index) => ({
+      ...member,
+      regNo: formatRegNo(index + 1),
+    }));
+
+    const prep = prepareAttendeesWithBlank(resequenced);
+    setAttendees(prep.all);
+    setSelectedAttendeeId(restoredItem.id);
+
+    try {
+      localStorage.setItem('somaborton_attendees_v1', JSON.stringify(resequenced));
+    } catch (e) {
+      console.warn('LocalStorage save attendees failed:', e);
+    }
+
+    // 3. Sync with backend
+    if (backendStatus.online) {
+      try {
+        const res = await api.restoreAttendee(id);
+        if (res) {
+          if (res.archivedList) setArchivedAttendees(res.archivedList);
+          if (res.active && res.active.length > 0) {
+            const serverPrep = prepareAttendeesWithBlank(res.active);
+            setAttendees(serverPrep.all);
+          }
+        }
+      } catch (err) {
+        console.warn('Backend restore attendee failed:', err);
+        // Fallback update server with local resequenced state
+        try {
+          await api.batchImport(resequenced, 'replace');
+        } catch {
+          // ignore
+        }
+      }
+    }
+  };
+
+  const handleRestoreAllAttendees = async () => {
+    if (archivedAttendees.length === 0) return;
+    if (!window.confirm(`আর্কাইভের মোট ${archivedAttendees.length} জন সদস্যকে কি সক্রিয় তালিকায় ফিরিয়ে আনতে চান?`)) {
+      return;
+    }
+
+    const currentValid = attendees.filter((a) => (a.name || '').trim() !== '');
+    const restoredMembers: Attendee[] = archivedAttendees.map((a) => ({
+      ...a,
+      isArchived: false,
+      archivedAt: undefined,
+    }));
+
+    const combined = [...currentValid, ...restoredMembers];
+    const resequenced = combined.map((m, idx) => ({
+      ...m,
+      regNo: formatRegNo(idx + 1),
+    }));
+
+    setArchivedAttendees([]);
+    const prep = prepareAttendeesWithBlank(resequenced);
+    setAttendees(prep.all);
+
+    try {
+      localStorage.setItem('somaborton_attendees_v1', JSON.stringify(resequenced));
+      localStorage.setItem('somaborton_archived_attendees_v1', JSON.stringify([]));
+    } catch (e) {
+      console.warn('LocalStorage save attendees failed:', e);
+    }
+
+    if (backendStatus.online) {
+      try {
+        const res = await api.restoreAllAttendees();
+        if (res && res.active) {
+          const serverPrep = prepareAttendeesWithBlank(res.active);
+          setAttendees(serverPrep.all);
+        }
+        if (res && res.archivedList) {
+          setArchivedAttendees(res.archivedList);
+        }
+      } catch (err) {
+        console.warn('Backend restore all failed, falling back to batchImport:', err);
+        try {
+          await api.batchImport(resequenced, 'replace');
+        } catch {
+          // ignore
+        }
+      }
+    }
+  };
+
+  const handlePermanentDeleteAttendee = async (id: string) => {
+    const target = archivedAttendees.find((a) => a.id === id);
+    const targetName = target?.name ? `"${target.name}"` : 'এই সদস্যকে';
+    if (!window.confirm(`${targetName} কি আর্কাইভ এবং ডাটাবেজ থেকে স্থায়ীভাবে মুছে ফেলতে চান? এটি আর ফিরিয়ে আনা সম্ভব হবে না।`)) {
+      return;
+    }
+
+    setArchivedAttendees((prev) => prev.filter((a) => a.id !== id));
+
+    if (backendStatus.online) {
+      try {
+        const res = await api.permanentDeleteAttendee(id, target?.regNo);
+        if (res && res.archivedList) {
+          setArchivedAttendees(res.archivedList);
+        }
+      } catch (err) {
+        console.warn('Backend permanent delete failed:', err);
+      }
+    }
+  };
+
+  const handleClearArchive = async () => {
+    if (archivedAttendees.length === 0) return;
+    if (!window.confirm('আপনি কি নিশ্চিত যে আর্কাইভের সকল সদস্যকে স্থায়ীভাবে মুছে ফেলতে চান? এটি আর ফিরিয়ে আনা সম্ভব হবে না।')) {
+      return;
+    }
+
+    setArchivedAttendees([]);
+
+    if (backendStatus.online) {
+      try {
+        const res = await api.clearArchive();
+        if (res && res.archivedList) {
+          setArchivedAttendees(res.archivedList);
+        }
+      } catch (err) {
+        console.warn('Backend clear archive failed:', err);
       }
     }
   };
@@ -1051,6 +1238,7 @@ export default function App() {
           <div className="space-y-6">
             <AttendeeTable
               attendees={attendees}
+              archivedAttendees={archivedAttendees}
               selectedAttendeeId={selectedAttendeeId}
               config={config}
               onSelectAttendee={(id) => {
@@ -1060,6 +1248,10 @@ export default function App() {
               onAddAttendee={handleAddAttendee}
               onUpdateAttendee={handleUpdateAttendee}
               onDeleteAttendee={handleDeleteAttendee}
+              onRestoreAttendee={handleRestoreAttendee}
+              onRestoreAllAttendees={handleRestoreAllAttendees}
+              onPermanentDeleteAttendee={handlePermanentDeleteAttendee}
+              onClearArchive={handleClearArchive}
               onReorderAttendees={handleReorderAttendees}
               onPhotoUpload={handlePhotoUpload}
               onBulkPrint={handleBrowserPrint}

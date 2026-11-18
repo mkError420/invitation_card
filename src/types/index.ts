@@ -7,6 +7,8 @@ export interface Attendee {
   guests: string;
   phone: string;
   photoUrl?: string;
+  isArchived?: boolean;
+  archivedAt?: string;
 }
 
 export interface EventConfig {
